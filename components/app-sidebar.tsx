@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LayoutDashboard, FolderKanban, CheckSquare, Settings, Users } from "lucide-react"
@@ -19,9 +20,13 @@ export function AppSidebar() {
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
-          <FolderKanban className="h-5 w-5 text-sidebar-primary-foreground" />
-        </div>
+        <Image
+          src="/sify-logo.png"
+          alt="SIFY Logo"
+          width={32}
+          height={32}
+          className="h-8 w-8"
+        />
         <span className="text-lg font-semibold">iTest Content Team</span>
       </div>
 
