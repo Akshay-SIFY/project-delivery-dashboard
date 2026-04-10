@@ -23,7 +23,7 @@ export default function DashboardPage() {
       <AppSidebar />
       <main className="ml-64">
         <AppHeader
-          title="Dashboard"
+          title="My Project Dashboard"
           description="Overview of your projects and tasks"
         />
         <div className="space-y-8 p-6">
