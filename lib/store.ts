@@ -35,7 +35,7 @@ const teamMembers: TeamMember[] = [
   { id: "4", name: "Dharmendra", avatar: "DH", role: "Associate" },
   { id: "5", name: "Rohit", avatar: "RH", role: "Customer Front" },
   { id: "6", name: "Tech Team", avatar: "TT", role: "Tech" },
-  { id: "7", name: "Backend Team", avatar: "BT", role: "Backend Team" },
+  { id: "7", name: "Backend Team", avatar: "BT", role: "Backend" },
 ]
 
 const initialProjects: Project[] = [
