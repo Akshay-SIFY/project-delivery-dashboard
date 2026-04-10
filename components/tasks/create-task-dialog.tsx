@@ -24,11 +24,24 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
   const [priority, setPriority] = useState<TaskPriority>("medium")
   const [status, setStatus] = useState<TaskStatus>("todo")
   const [assignee, setAssignee] = useState(teamMembers[0]?.name || "")
+  const [startDate, setStartDate] = useState("")
   const [dueDate, setDueDate] = useState("")
+  const [dateError, setDateError] = useState("")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title.trim() || !dueDate) return
+    
+    setDateError("")
+    
+    if (!title.trim() || !startDate || !dueDate) {
+      setDateError("Both start and due dates are required")
+      return
+    }
+
+    if (new Date(dueDate) < new Date(startDate)) {
+      setDateError("Due date cannot be before start date")
+      return
+    }
 
     addTask({
       title: title.trim(),
@@ -36,6 +49,7 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
       priority,
       status,
       assignee,
+      startDate,
       dueDate,
       projectId,
     })
@@ -45,7 +59,9 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
     setPriority("medium")
     setStatus("todo")
     setAssignee(teamMembers[0]?.name || "")
+    setStartDate("")
     setDueDate("")
+    setDateError("")
     onOpenChange(false)
   }
 
@@ -135,17 +151,59 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">
+                Status
+              </label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as TaskStatus)}
+                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
+              >
+                <option value="todo">To Do</option>
+                <option value="in-progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value)
+                  setDateError("")
+                }}
+                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
                 Due Date
               </label>
               <input
                 type="date"
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                onChange={(e) => {
+                  setDueDate(e.target.value)
+                  setDateError("")
+                }}
                 className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
                 required
               />
             </div>
           </div>
+
+          {dateError && (
+            <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+              {dateError}
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-4">
             <Button

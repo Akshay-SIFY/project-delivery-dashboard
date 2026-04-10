@@ -22,7 +22,7 @@ export function AppSidebar() {
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
           <FolderKanban className="h-5 w-5 text-sidebar-primary-foreground" />
         </div>
-        <span className="text-lg font-semibold">ProjectHub</span>
+        <span className="text-lg font-semibold">iTest Content Team</span>
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4">
@@ -50,11 +50,11 @@ export function AppSidebar() {
       <div className="border-t border-sidebar-border p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sidebar-accent text-sm font-medium">
-            JD
+            SP
           </div>
           <div className="flex-1 truncate">
-            <p className="text-sm font-medium">John Davis</p>
-            <p className="text-xs text-sidebar-foreground/60">Project Manager</p>
+            <p className="text-sm font-medium">Sant Prasad Gupta</p>
+            <p className="text-xs text-sidebar-foreground/60">Manager</p>
           </div>
         </div>
       </div>

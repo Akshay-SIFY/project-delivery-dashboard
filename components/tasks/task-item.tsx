@@ -31,12 +31,24 @@ export function TaskItem({ task }: TaskItemProps) {
     completed: "border-chart-2 bg-chart-2",
   }
 
+  // Check if task is overdue
+  const isOverdue =
+    task.status !== "completed" &&
+    new Date(task.dueDate) < new Date() &&
+    new Date(task.dueDate).toDateString() !== new Date().toDateString()
+
   const handleStatusChange = (newStatus: TaskStatus) => {
     updateTask(task.id, { status: newStatus })
   }
 
   return (
-    <div className="group flex items-start gap-3 rounded-lg border border-border/50 bg-card p-4 transition-all hover:shadow-md">
+    <div
+      className={`group flex items-start gap-3 rounded-lg border p-4 transition-all hover:shadow-md ${
+        isOverdue
+          ? "border-destructive/50 bg-destructive/5"
+          : "border-border/50 bg-card"
+      }`}
+    >
       <button
         onClick={() =>
           handleStatusChange(task.status === "completed" ? "todo" : "completed")
@@ -101,11 +113,21 @@ export function TaskItem({ task }: TaskItemProps) {
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Calendar className="h-3.5 w-3.5" />
+            {new Date(task.startDate).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })}{" "}
+            →{" "}
             {new Date(task.dueDate).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
             })}
           </div>
+          {isOverdue && (
+            <span className="ml-auto rounded-full border border-destructive bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+              Overdue
+            </span>
+          )}
         </div>
       </div>
     </div>

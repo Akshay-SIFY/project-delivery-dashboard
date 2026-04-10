@@ -7,8 +7,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'ProjectHub - Project Management',
-  description: 'Manage your projects and tasks efficiently with ProjectHub',
+  title: 'iTest Content Team - Project Management',
+  description: 'Manage your projects and tasks efficiently with iTest Content Team',
   generator: 'v0.app',
   icons: {
     icon: [
