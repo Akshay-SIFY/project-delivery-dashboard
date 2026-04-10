@@ -35,7 +35,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
             style={{ backgroundColor: project.color }}
           />
           <Link
-            href={`/projects/${project.id}`}
+            href={`/project/${project.slug}`}
             className="font-semibold text-foreground hover:text-primary transition-colors"
           >
             {project.name}
@@ -53,7 +53,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
-              <Link href={`/projects/${project.id}`}>View Details</Link>
+              <Link href={`/project/${project.slug}`}>View Details</Link>
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"

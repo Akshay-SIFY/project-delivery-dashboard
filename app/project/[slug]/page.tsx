@@ -15,20 +15,20 @@ import { useStore } from "@/lib/store"
 export default function ProjectDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ slug: string }>
 }) {
-  const { id } = use(params)
-  const { projects, tasks, searchQuery } = useStore()
+  const { slug } = use(params)
+  const { projects, tasks, searchQuery, getProjectBySlug } = useStore()
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>("all")
 
-  const project = projects.find((p) => p.id === id)
+  const project = getProjectBySlug(slug)
 
   if (!project) {
     notFound()
   }
 
-  const projectTasks = tasks.filter((t) => t.projectId === id)
+  const projectTasks = tasks.filter((t) => t.projectId === project.id)
   const filteredTasks = projectTasks.filter((t) => {
     const matchesSearch =
       t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -200,7 +200,7 @@ export default function ProjectDetailPage({
       <CreateTaskDialog
         open={isCreateTaskOpen}
         onOpenChange={setIsCreateTaskOpen}
-        projectId={id}
+        projectId={project.id}
       />
     </div>
   )

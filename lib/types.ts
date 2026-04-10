@@ -19,6 +19,7 @@ export interface Project {
   id: string
   name: string
   description: string
+  slug: string
   status: ProjectStatus
   progress: number
   tasksCount: number

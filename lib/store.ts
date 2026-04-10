@@ -3,15 +3,26 @@
 import { create } from "zustand"
 import type { Project, Task, TeamMember } from "./types"
 
+// Helper function to generate URL-friendly slug from project name
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+}
+
 interface Store {
   projects: Project[]
   tasks: Task[]
   teamMembers: TeamMember[]
   searchQuery: string
   setSearchQuery: (query: string) => void
-  addProject: (project: Omit<Project, "id" | "createdAt" | "tasksCount" | "completedTasks" | "progress">) => void
+  addProject: (project: Omit<Project, "id" | "slug" | "createdAt" | "tasksCount" | "completedTasks" | "progress">) => void
   updateProject: (id: string, updates: Partial<Project>) => void
   deleteProject: (id: string) => void
+  getProjectBySlug: (slug: string) => Project | undefined
   addTask: (task: Omit<Task, "id" | "createdAt">) => void
   updateTask: (id: string, updates: Partial<Task>) => void
   deleteTask: (id: string) => void
@@ -31,6 +42,7 @@ const initialProjects: Project[] = [
   {
     id: "1",
     name: "Website Redesign",
+    slug: "website-redesign",
     description: "Complete overhaul of the company website with modern design and improved UX",
     status: "active",
     progress: 65,
@@ -43,6 +55,7 @@ const initialProjects: Project[] = [
   {
     id: "2",
     name: "Mobile App Development",
+    slug: "mobile-app-development",
     description: "Build a cross-platform mobile application for iOS and Android",
     status: "active",
     progress: 40,
@@ -55,6 +68,7 @@ const initialProjects: Project[] = [
   {
     id: "3",
     name: "API Integration",
+    slug: "api-integration",
     description: "Integrate third-party APIs for payment processing and analytics",
     status: "on-hold",
     progress: 25,
@@ -67,6 +81,7 @@ const initialProjects: Project[] = [
   {
     id: "4",
     name: "Database Migration",
+    slug: "database-migration",
     description: "Migrate legacy database to new cloud infrastructure",
     status: "completed",
     progress: 100,
@@ -184,9 +199,11 @@ export const useStore = create<Store>((set, get) => ({
   searchQuery: "",
   setSearchQuery: (query) => set({ searchQuery: query }),
   addProject: (project) => {
+    const slug = generateSlug(project.name)
     const newProject: Project = {
       ...project,
       id: Date.now().toString(),
+      slug,
       createdAt: new Date().toISOString().split("T")[0],
       tasksCount: 0,
       completedTasks: 0,
@@ -204,6 +221,9 @@ export const useStore = create<Store>((set, get) => ({
       projects: state.projects.filter((p) => p.id !== id),
       tasks: state.tasks.filter((t) => t.projectId !== id),
     }))
+  },
+  getProjectBySlug: (slug) => {
+    return get().projects.find((p) => p.slug === slug)
   },
   addTask: (task) => {
     const newTask: Task = {

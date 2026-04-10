@@ -34,7 +34,7 @@ export function ProjectListItem({ project }: ProjectListItemProps) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-3">
           <Link
-            href={`/projects/${project.id}`}
+            href={`/project/${project.slug}`}
             className="font-semibold text-foreground hover:text-primary transition-colors truncate"
           >
             {project.name}
@@ -81,7 +81,7 @@ export function ProjectListItem({ project }: ProjectListItemProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
-              <Link href={`/projects/${project.id}`}>View Details</Link>
+              <Link href={`/project/${project.slug}`}>View Details</Link>
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
@@ -92,7 +92,7 @@ export function ProjectListItem({ project }: ProjectListItemProps) {
           </DropdownMenuContent>
         </DropdownMenu>
         <Link
-          href={`/projects/${project.id}`}
+          href={`/project/${project.slug}`}
           className="p-2 text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronRight className="h-4 w-4" />
