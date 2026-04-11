@@ -26,6 +26,10 @@ interface Store {
   addTask: (task: Omit<Task, "id" | "createdAt">) => void
   updateTask: (id: string, updates: Partial<Task>) => void
   deleteTask: (id: string) => void
+  addTeamMember: (member: Omit<TeamMember, "id">) => void
+  updateTeamMember: (id: string, updates: Partial<TeamMember>) => void
+  deleteTeamMember: (id: string) => { deletedMember: TeamMember; affectedTasks: Task[] }
+  getTasksByAssignee: (memberName: string) => Task[]
 }
 
 const teamMembers: TeamMember[] = [
@@ -293,5 +297,40 @@ export const useStore = create<Store>((set, get) => ({
         ),
       }
     })
+  },
+  addTeamMember: (member) => {
+    const newMember: TeamMember = {
+      ...member,
+      id: Date.now().toString(),
+    }
+    set((state) => ({ teamMembers: [...state.teamMembers, newMember] }))
+  },
+  updateTeamMember: (id, updates) => {
+    set((state) => ({
+      teamMembers: state.teamMembers.map((m) => (m.id === id ? { ...m, ...updates } : m)),
+    }))
+  },
+  deleteTeamMember: (id) => {
+    const state = get()
+    const memberToDelete = state.teamMembers.find((m) => m.id === id)
+    if (!memberToDelete) return { deletedMember: null as any, affectedTasks: [] }
+    
+    const affectedTasks = state.tasks.filter((t) =>
+      t.assignees.includes(memberToDelete.name)
+    )
+    
+    set((state) => ({
+      teamMembers: state.teamMembers.filter((m) => m.id !== id),
+      tasks: state.tasks.map((t) =>
+        t.assignees.includes(memberToDelete.name)
+          ? { ...t, assignees: t.assignees.filter((a) => a !== memberToDelete.name) }
+          : t
+      ),
+    }))
+    
+    return { deletedMember: memberToDelete, affectedTasks }
+  },
+  getTasksByAssignee: (memberName) => {
+    return get().tasks.filter((t) => t.assignees.includes(memberName))
   },
 }))

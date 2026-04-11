@@ -23,11 +23,11 @@ export default function SettingsPage() {
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-4">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-xl font-semibold text-primary-foreground">
-                    JD
+                    AS
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">John Davis</p>
-                    <p className="text-sm text-muted-foreground">john.davis@company.com</p>
+                    <p className="font-semibold text-foreground">Akshay Singh</p>
+                    <p className="text-sm text-muted-foreground">akshay.singh@sifycorp.com</p>
                   </div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -35,7 +35,7 @@ export default function SettingsPage() {
                     <label className="text-sm font-medium text-foreground">Full Name</label>
                     <input
                       type="text"
-                      defaultValue="John Davis"
+                      defaultValue="Akshay Singh"
                       className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-1"
                     />
                   </div>
@@ -43,7 +43,7 @@ export default function SettingsPage() {
                     <label className="text-sm font-medium text-foreground">Email</label>
                     <input
                       type="email"
-                      defaultValue="john.davis@company.com"
+                      defaultValue="akshay.singh@sifycorp.com"
                       className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-1"
                     />
                   </div>

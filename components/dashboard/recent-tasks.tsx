@@ -54,7 +54,7 @@ export function RecentTasks() {
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span>{getProjectName(task.projectId)}</span>
                 <span>•</span>
-                <span>{task.assignee}</span>
+                <span>{task.assignees.join(", ")}</span>
               </div>
             </div>
           </div>

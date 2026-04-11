@@ -5,6 +5,8 @@ import { AppHeader } from "@/components/app-header"
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import { ProjectCard } from "@/components/dashboard/project-card"
 import { RecentTasks } from "@/components/dashboard/recent-tasks"
+import { TaskStatusChart } from "@/components/dashboard/task-status-chart"
+import { ProjectTasksChart } from "@/components/dashboard/project-tasks-chart"
 import { useStore } from "@/lib/store"
 
 export default function DashboardPage() {
@@ -54,6 +56,11 @@ export default function DashboardPage() {
               </div>
             </div>
             <RecentTasks />
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <TaskStatusChart />
+            <ProjectTasksChart />
           </div>
         </div>
       </main>
