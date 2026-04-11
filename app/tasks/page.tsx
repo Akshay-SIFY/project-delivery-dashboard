@@ -2,9 +2,12 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { Upload } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppHeader } from "@/components/app-header"
 import { TaskItem } from "@/components/tasks/task-item"
+import { ExcelImportDialog } from "@/components/tasks/excel-import-dialog"
 import { useStore } from "@/lib/store"
 
 export default function TasksPage() {
@@ -12,6 +15,7 @@ export default function TasksPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [priorityFilter, setPriorityFilter] = useState<string>("all")
   const [projectFilter, setProjectFilter] = useState<string>("all")
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
 
   const filteredTasks = tasks.filter((t) => {
     const matchesSearch =
@@ -42,41 +46,51 @@ export default function TasksPage() {
           description="View and manage all tasks across projects"
         />
         <div className="p-6">
-          <div className="mb-6 flex flex-wrap items-center gap-3">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
-            >
-              <option value="all">All Status</option>
-              <option value="todo">To Do</option>
-              <option value="in-progress">In Progress</option>
-              <option value="completed">Completed</option>
-            </select>
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
+              >
+                <option value="all">All Status</option>
+                <option value="todo">To Do</option>
+                <option value="in-progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
 
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
-            >
-              <option value="all">All Priority</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
+              <select
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+                className="h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
+              >
+                <option value="all">All Priority</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
 
-            <select
-              value={projectFilter}
-              onChange={(e) => setProjectFilter(e.target.value)}
-              className="h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
+              <select
+                value={projectFilter}
+                onChange={(e) => setProjectFilter(e.target.value)}
+                className="h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
+              >
+                <option value="all">All Projects</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <Button
+              onClick={() => setImportDialogOpen(true)}
+              className="gap-2"
             >
-              <option value="all">All Projects</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
+              <Upload className="h-4 w-4" />
+              Import from Excel
+            </Button>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">
@@ -95,7 +109,7 @@ export default function TasksPage() {
                     <div key={task.id} className="space-y-1">
                       <TaskItem task={task} />
                       <Link
-                        href={`/projects/${task.projectId}`}
+                        href={`/project/${projects.find((p) => p.id === task.projectId)?.slug}`}
                         className="ml-8 text-xs text-primary hover:underline"
                       >
                         {getProjectName(task.projectId)}
@@ -112,6 +126,8 @@ export default function TasksPage() {
             ))}
           </div>
         </div>
+
+        <ExcelImportDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} />
       </main>
     </div>
   )

@@ -18,15 +18,34 @@ interface CreateTaskDialogProps {
 }
 
 export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDialogProps) {
-  const { addTask, teamMembers } = useStore()
+  const { addTask, teamMembers, tasks } = useStore()
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [priority, setPriority] = useState<TaskPriority>("medium")
   const [status, setStatus] = useState<TaskStatus>("todo")
-  const [assignee, setAssignee] = useState(teamMembers[0]?.name || "")
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>([])
+  const [dependencies, setDependencies] = useState<string[]>([])
   const [startDate, setStartDate] = useState("")
   const [dueDate, setDueDate] = useState("")
   const [dateError, setDateError] = useState("")
+
+  const projectTasks = tasks.filter((t) => t.projectId === projectId)
+
+  const handleAssigneeToggle = (memberName: string) => {
+    setSelectedAssignees((prev) =>
+      prev.includes(memberName)
+        ? prev.filter((name) => name !== memberName)
+        : [...prev, memberName]
+    )
+  }
+
+  const handleDependencyToggle = (taskId: string) => {
+    setDependencies((prev) =>
+      prev.includes(taskId)
+        ? prev.filter((id) => id !== taskId)
+        : [...prev, taskId]
+    )
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,6 +54,11 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
     
     if (!title.trim() || !startDate || !dueDate) {
       setDateError("Both start and due dates are required")
+      return
+    }
+
+    if (selectedAssignees.length === 0) {
+      setDateError("Please select at least one assignee")
       return
     }
 
@@ -48,7 +72,8 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
       description: description.trim(),
       priority,
       status,
-      assignee,
+      assignees: selectedAssignees,
+      dependencies,
       startDate,
       dueDate,
       projectId,
@@ -58,7 +83,8 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
     setDescription("")
     setPriority("medium")
     setStatus("todo")
-    setAssignee(teamMembers[0]?.name || "")
+    setSelectedAssignees([])
+    setDependencies([])
     setStartDate("")
     setDueDate("")
     setDateError("")
@@ -131,39 +157,51 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Assignee
-              </label>
-              <select
-                value={assignee}
-                onChange={(e) => setAssignee(e.target.value)}
-                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
-              >
-                {teamMembers.map((member) => (
-                  <option key={member.id} value={member.name}>
-                    {member.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Status
-              </label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as TaskStatus)}
-                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
-              >
-                <option value="todo">To Do</option>
-                <option value="in-progress">In Progress</option>
-                <option value="completed">Completed</option>
-              </select>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">
+              Assign To (select one or more)
+            </label>
+            <div className="max-h-40 space-y-2 overflow-y-auto rounded-lg border border-input bg-background p-2">
+              {teamMembers.map((member) => (
+                <label
+                  key={member.id}
+                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-muted"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedAssignees.includes(member.name)}
+                    onChange={() => handleAssigneeToggle(member.name)}
+                    className="h-4 w-4 rounded border-input cursor-pointer"
+                  />
+                  <span className="text-sm">{member.name}</span>
+                </label>
+              ))}
             </div>
           </div>
+
+          {projectTasks.length > 0 && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Dependencies (optional)
+              </label>
+              <div className="max-h-40 space-y-2 overflow-y-auto rounded-lg border border-input bg-background p-2">
+                {projectTasks.map((task) => (
+                  <label
+                    key={task.id}
+                    className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-muted"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={dependencies.includes(task.id)}
+                      onChange={() => handleDependencyToggle(task.id)}
+                      className="h-4 w-4 rounded border-input cursor-pointer"
+                    />
+                    <span className="text-sm">{task.title}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

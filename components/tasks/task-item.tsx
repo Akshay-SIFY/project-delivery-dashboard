@@ -109,7 +109,13 @@ export function TaskItem({ task }: TaskItemProps) {
           </span>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <User className="h-3.5 w-3.5" />
-            {task.assignee}
+            <div className="flex flex-wrap gap-1">
+              {task.assignees.map((assignee, idx) => (
+                <span key={idx} className="inline-block rounded-full bg-muted px-2 py-0.5 text-xs text-foreground">
+                  {assignee}
+                </span>
+              ))}
+            </div>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Calendar className="h-3.5 w-3.5" />
@@ -123,6 +129,11 @@ export function TaskItem({ task }: TaskItemProps) {
               day: "numeric",
             })}
           </div>
+          {task.dependencies.length > 0 && (
+            <span className="inline-block rounded-full bg-muted px-2 py-0.5 text-xs text-foreground">
+              {task.dependencies.length} dependency
+            </span>
+          )}
           {isOverdue && (
             <span className="ml-auto rounded-full border border-destructive bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
               Overdue

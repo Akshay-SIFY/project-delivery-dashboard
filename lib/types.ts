@@ -8,7 +8,8 @@ export interface Task {
   description: string
   priority: TaskPriority
   status: TaskStatus
-  assignee: string
+  assignees: string[]
+  dependencies: string[]
   startDate: string
   dueDate: string
   projectId: string
