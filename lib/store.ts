@@ -5,10 +5,16 @@ import type { Project, Task, TeamMember } from "./types"
 
 interface Store {
   projects: Project[]
+  projectsLoaded: boolean
   tasks: Task[]
+  tasksLoaded: boolean
   teamMembers: TeamMember[]
+  teamLoaded: boolean
   searchQuery: string
   setSearchQuery: (query: string) => void
+  loadProjects: () => Promise<void>
+  loadTasks: () => Promise<void>
+  loadTeamMembers: () => Promise<void>
   addProject: (
     project: Omit<
       Project,
@@ -18,139 +24,87 @@ interface Store {
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>
   deleteProject: (id: string) => Promise<void>
   getProjectBySlug: (slug: string) => Project | undefined
-  addTask: (task: Omit<Task, "id" | "createdAt">) => void
-  updateTask: (id: string, updates: Partial<Task>) => void
-  deleteTask: (id: string) => void
-  addTeamMember: (member: Omit<TeamMember, "id">) => void
-  updateTeamMember: (id: string, updates: Partial<TeamMember>) => void
-  deleteTeamMember: (id: string) => { deletedMember: TeamMember; affectedTasks: Task[] }
+  addTask: (task: Omit<Task, "id" | "createdAt">) => Promise<void>
+  updateTask: (id: string, updates: Partial<Task>) => Promise<void>
+  deleteTask: (id: string) => Promise<void>
+  addTeamMember: (member: Omit<TeamMember, "id">) => Promise<void>
+  updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<void>
+  deleteTeamMember: (id: string) => Promise<{ deletedMember: TeamMember; affectedTasks: Task[] }>
   getTasksByAssignee: (memberName: string) => Task[]
 }
 
-const teamMembers: TeamMember[] = [
-  { id: "1", name: "Sant Prasad Gupta", avatar: "SP", role: "Manager" },
-  { id: "2", name: "Akshay Singh", avatar: "AS", role: "Content Specialist" },
-  { id: "3", name: "Ajhar", avatar: "AJ", role: "Associate" },
-  { id: "4", name: "Dharmendra", avatar: "DH", role: "Associate" },
-  { id: "5", name: "Rohit", avatar: "RH", role: "Customer Front" },
-  { id: "6", name: "Tech Team", avatar: "TT", role: "Tech" },
-  { id: "7", name: "Backend Team", avatar: "BT", role: "Backend" },
-]
+function recalculateProjectStats(projects: Project[], tasks: Task[]): Project[] {
+  return projects.map((project) => {
+    const projectTasks = tasks.filter((task) => task.projectId === project.id)
+    const completedTasks = projectTasks.filter((task) => task.status === "completed").length
+    const tasksCount = projectTasks.length
+    const progress = tasksCount > 0 ? Math.round((completedTasks / tasksCount) * 100) : 0
 
-const initialTasks: Task[] = [
-  {
-    id: "1",
-    title: "Design homepage mockup",
-    description: "Create high-fidelity mockups for the new homepage design",
-    priority: "high",
-    status: "completed",
-    assignees: ["Akshay Singh"],
-    dependencies: [],
-    startDate: "2026-03-20",
-    dueDate: "2026-04-10",
-    projectId: "1",
-    createdAt: "2026-03-15",
-  },
-  {
-    id: "2",
-    title: "Implement responsive navigation",
-    description: "Build a responsive navigation component that works on all devices",
-    priority: "high",
-    status: "in-progress",
-    assignees: ["Sant Prasad Gupta"],
-    dependencies: ["1"],
-    startDate: "2026-03-25",
-    dueDate: "2026-04-15",
-    projectId: "1",
-    createdAt: "2026-03-20",
-  },
-  {
-    id: "3",
-    title: "Set up CI/CD pipeline",
-    description: "Configure automated testing and deployment pipeline",
-    priority: "medium",
-    status: "todo",
-    assignees: ["Tech Team"],
-    dependencies: ["2"],
-    startDate: "2026-04-01",
-    dueDate: "2026-04-20",
-    projectId: "1",
-    createdAt: "2026-03-25",
-  },
-  {
-    id: "4",
-    title: "User authentication flow",
-    description: "Implement secure user login and registration",
-    priority: "high",
-    status: "in-progress",
-    assignees: ["Backend Team"],
-    dependencies: [],
-    startDate: "2026-03-15",
-    dueDate: "2026-04-25",
-    projectId: "2",
-    createdAt: "2026-03-10",
-  },
-  {
-    id: "5",
-    title: "Push notifications",
-    description: "Set up push notification service for mobile app",
-    priority: "medium",
-    status: "todo",
-    assignees: ["Dharmendra"],
-    dependencies: ["4"],
-    startDate: "2026-04-05",
-    dueDate: "2026-05-01",
-    projectId: "2",
-    createdAt: "2026-03-15",
-  },
-  {
-    id: "6",
-    title: "Payment gateway integration",
-    description: "Integrate Stripe payment processing",
-    priority: "high",
-    status: "todo",
-    assignees: ["Tech Team"],
-    dependencies: [],
-    startDate: "2026-04-01",
-    dueDate: "2026-04-30",
-    projectId: "3",
-    createdAt: "2026-03-20",
-  },
-  {
-    id: "7",
-    title: "Analytics dashboard",
-    description: "Build analytics dashboard with charts and metrics",
-    priority: "low",
-    status: "todo",
-    assignees: ["Akshay Singh"],
-    dependencies: ["6"],
-    startDate: "2026-04-10",
-    dueDate: "2026-05-10",
-    projectId: "3",
-    createdAt: "2026-03-25",
-  },
-  {
-    id: "8",
-    title: "Data backup verification",
-    description: "Verify all data has been backed up correctly",
-    priority: "high",
-    status: "completed",
-    assignees: ["Rohit"],
-    dependencies: [],
-    startDate: "2026-03-10",
-    dueDate: "2026-03-25",
-    projectId: "4",
-    createdAt: "2026-03-01",
-  },
-]
+    return { ...project, tasksCount, completedTasks, progress }
+  })
+}
 
 export const useStore = create<Store>((set, get) => ({
   projects: [],
-  tasks: initialTasks,
-  teamMembers,
+  projectsLoaded: false,
+  tasks: [],
+  tasksLoaded: false,
+  teamMembers: [],
+  teamLoaded: false,
   searchQuery: "",
 
   setSearchQuery: (query) => set({ searchQuery: query }),
+
+  loadProjects: async () => {
+    try {
+      const res = await fetch("/api/projects")
+      const data = await res.json()
+      if (Array.isArray(data)) {
+        set((state) => ({
+          projects: recalculateProjectStats(data, state.tasks),
+          projectsLoaded: true,
+        }))
+        return
+      }
+    } catch (err) {
+      console.error("Failed to load projects:", err)
+    }
+
+    set({ projectsLoaded: true })
+  },
+
+  loadTasks: async () => {
+    try {
+      const res = await fetch("/api/tasks")
+      const data = await res.json()
+      if (Array.isArray(data)) {
+        set((state) => {
+          const projects = recalculateProjectStats(state.projects, data)
+          return { tasks: data, tasksLoaded: true, projects }
+        })
+        return
+      }
+    } catch (err) {
+      console.error("Failed to load tasks:", err)
+    }
+
+    set({ tasksLoaded: true })
+  },
+
+  loadTeamMembers: async () => {
+    try {
+      const res = await fetch("/api/team")
+      const data = await res.json()
+      if (Array.isArray(data)) {
+        set({ teamMembers: data, teamLoaded: true })
+        return
+      }
+    } catch (err) {
+      console.error("Failed to load team members:", err)
+    }
+
+    set({ teamLoaded: true })
+  },
 
   addProject: async (project) => {
     const res = await fetch("/api/projects", {
@@ -172,7 +126,7 @@ export const useStore = create<Store>((set, get) => ({
 
     const payload = { ...currentProject, ...updates, id }
 
-    const res = await fetch("/api/projects", {
+    const res = await fetch(`/api/projects/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -186,10 +140,8 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   deleteProject: async (id) => {
-    await fetch("/api/projects", {
+    await fetch(`/api/projects/${id}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
     })
 
     set((state) => ({
@@ -202,120 +154,143 @@ export const useStore = create<Store>((set, get) => ({
     return get().projects.find((p) => p.slug === slug)
   },
 
-  addTask: (task) => {
-    const newTask: Task = {
-      ...task,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString().split("T")[0],
+  addTask: async (task) => {
+    const res = await fetch("/api/tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(task),
+    })
+
+    const newTask = await res.json()
+
+    set((state) => {
+      const tasks = [...state.tasks, newTask]
+      return {
+        tasks,
+        projects: recalculateProjectStats(state.projects, tasks),
+      }
+    })
+  },
+
+  updateTask: async (id, updates) => {
+    const currentTask = get().tasks.find((task) => task.id === id)
+    if (!currentTask) return
+
+    const payload = { ...currentTask, ...updates, id }
+
+    const res = await fetch(`/api/tasks/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    const updatedTask = await res.json()
+
+    set((state) => {
+      const tasks = state.tasks.map((task) => (task.id === id ? updatedTask : task))
+      return {
+        tasks,
+        projects: recalculateProjectStats(state.projects, tasks),
+      }
+    })
+  },
+
+  deleteTask: async (id) => {
+    const res = await fetch(`/api/tasks/${id}`, {
+      method: "DELETE",
+    })
+
+    if (!res.ok) {
+      return
     }
 
     set((state) => {
-      const updatedTasks = [...state.tasks, newTask]
-      const projectTasks = updatedTasks.filter((t) => t.projectId === task.projectId)
-      const completedTasks = projectTasks.filter((t) => t.status === "completed").length
-      const progress =
-        projectTasks.length > 0 ? Math.round((completedTasks / projectTasks.length) * 100) : 0
-
+      const tasks = state.tasks.filter((task) => task.id !== id)
       return {
-        tasks: updatedTasks,
-        projects: state.projects.map((p) =>
-          p.id === task.projectId
-            ? { ...p, tasksCount: projectTasks.length, completedTasks, progress }
-            : p
-        ),
+        tasks,
+        projects: recalculateProjectStats(state.projects, tasks),
       }
     })
   },
 
-  updateTask: (id, updates) => {
-    set((state) => {
-      const updatedTasks = state.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t))
-      const task = updatedTasks.find((t) => t.id === id)
-      if (!task) return { tasks: updatedTasks }
-
-      const projectTasks = updatedTasks.filter((t) => t.projectId === task.projectId)
-      const completedTasks = projectTasks.filter((t) => t.status === "completed").length
-      const progress =
-        projectTasks.length > 0 ? Math.round((completedTasks / projectTasks.length) * 100) : 0
-
-      return {
-        tasks: updatedTasks,
-        projects: state.projects.map((p) =>
-          p.id === task.projectId ? { ...p, completedTasks, progress } : p
-        ),
-      }
+  addTeamMember: async (member) => {
+    const res = await fetch("/api/team", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(member),
     })
-  },
 
-  deleteTask: (id) => {
-    set((state) => {
-      const task = state.tasks.find((t) => t.id === id)
-      if (!task) return state
+    const newMember = await res.json()
 
-      const updatedTasks = state.tasks.filter((t) => t.id !== id)
-      const projectTasks = updatedTasks.filter((t) => t.projectId === task.projectId)
-      const completedTasks = projectTasks.filter((t) => t.status === "completed").length
-      const progress =
-        projectTasks.length > 0 ? Math.round((completedTasks / projectTasks.length) * 100) : 0
-
-      return {
-        tasks: updatedTasks,
-        projects: state.projects.map((p) =>
-          p.id === task.projectId
-            ? { ...p, tasksCount: projectTasks.length, completedTasks, progress }
-            : p
-        ),
-      }
-    })
-  },
-
-  addTeamMember: (member) => {
-    const newMember: TeamMember = {
-      ...member,
-      id: Date.now().toString(),
-    }
-    set((state) => ({ teamMembers: [...state.teamMembers, newMember] }))
-  },
-
-  updateTeamMember: (id, updates) => {
     set((state) => ({
-      teamMembers: state.teamMembers.map((m) => (m.id === id ? { ...m, ...updates } : m)),
+      teamMembers: [...state.teamMembers, newMember],
     }))
   },
 
-  deleteTeamMember: (id) => {
-    const state = get()
-    const memberToDelete = state.teamMembers.find((m) => m.id === id)
-    if (!memberToDelete) return { deletedMember: null as any, affectedTasks: [] }
+  updateTeamMember: async (id, updates) => {
+    const currentMember = get().teamMembers.find((member) => member.id === id)
+    if (!currentMember) return
 
-    const affectedTasks = state.tasks.filter((t) => t.assignees.includes(memberToDelete.name))
+    const payload = { ...currentMember, ...updates, id }
+
+    const res = await fetch(`/api/team/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    const updatedMember = await res.json()
 
     set((state) => ({
-      teamMembers: state.teamMembers.filter((m) => m.id !== id),
-      tasks: state.tasks.map((t) =>
-        t.assignees.includes(memberToDelete.name)
-          ? { ...t, assignees: t.assignees.filter((a) => a !== memberToDelete.name) }
-          : t
-      ),
+      teamMembers: state.teamMembers.map((member) => (member.id === id ? updatedMember : member)),
+      tasks: state.tasks.map((task) => {
+        if (!updates.name || !currentMember?.name) return task
+
+        const assignees = task.assignees.map((assignee) =>
+          assignee === currentMember.name ? updates.name! : assignee
+        )
+
+        return { ...task, assignees }
+      }),
+    }))
+  },
+
+  deleteTeamMember: async (id) => {
+    const state = get()
+    const memberToDelete = state.teamMembers.find((member) => member.id === id)
+    if (!memberToDelete) {
+      return { deletedMember: null as any, affectedTasks: [] }
+    }
+
+    const affectedTasks = state.tasks.filter((task) => task.assignees.includes(memberToDelete.name))
+
+    const res = await fetch(`/api/team/${id}`, {
+      method: "DELETE",
+    })
+
+    if (!res.ok) {
+      return { deletedMember: memberToDelete, affectedTasks }
+    }
+
+    set((prev) => ({
+      teamMembers: prev.teamMembers.filter((member) => member.id !== id),
+      tasks: prev.tasks.map((task) => ({
+        ...task,
+        assignees: task.assignees.filter((name) => name !== memberToDelete.name),
+      })),
     }))
 
     return { deletedMember: memberToDelete, affectedTasks }
   },
 
   getTasksByAssignee: (memberName) => {
-    return get().tasks.filter((t) => t.assignees.includes(memberName))
+    return get().tasks.filter((task) => task.assignees.includes(memberName))
   },
 }))
 
 if (typeof window !== "undefined") {
-  fetch("/api/projects")
-    .then((res) => res.json())
-    .then((data) => {
-      if (Array.isArray(data)) {
-        useStore.setState({ projects: data })
-      }
-    })
-    .catch((err) => {
-      console.error("Failed to load projects:", err)
-    })
+  const { loadProjects, loadTasks, loadTeamMembers } = useStore.getState()
+  void loadProjects()
+  void loadTasks()
+  void loadTeamMembers()
 }

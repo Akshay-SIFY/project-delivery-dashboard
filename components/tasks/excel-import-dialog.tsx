@@ -133,7 +133,7 @@ export function ExcelImportDialog({ open, onOpenChange }: ExcelImportDialogProps
     setImporting(true)
 
     try {
-      preview.forEach((row) => {
+      await Promise.all(preview.map(async (row) => {
         const project = projects.find((p) => p.name.toLowerCase() === row.projectName.toLowerCase())
         if (!project) return
 
@@ -143,7 +143,7 @@ export function ExcelImportDialog({ open, onOpenChange }: ExcelImportDialogProps
           .filter((a) => teamMembers.find((m) => m.name.toLowerCase() === a.toLowerCase()))
           .map((a) => a.charAt(0).toUpperCase() + a.slice(1))
 
-        addTask({
+        await addTask({
           title: row.taskName,
           description: row.description || "",
           priority: row.priority.toLowerCase() as TaskPriority,
@@ -154,7 +154,7 @@ export function ExcelImportDialog({ open, onOpenChange }: ExcelImportDialogProps
           dueDate: row.endDate,
           projectId: project.id,
         })
-      })
+      }))
 
       setFile(null)
       setPreview([])

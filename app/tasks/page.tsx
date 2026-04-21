@@ -2,12 +2,13 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Upload } from "lucide-react"
+import { Plus, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppHeader } from "@/components/app-header"
 import { TaskItem } from "@/components/tasks/task-item"
 import { ExcelImportDialog } from "@/components/tasks/excel-import-dialog"
+import { CreateTaskDialog } from "@/components/tasks/create-task-dialog"
 import { useStore } from "@/lib/store"
 
 export default function TasksPage() {
@@ -16,6 +17,7 @@ export default function TasksPage() {
   const [priorityFilter, setPriorityFilter] = useState<string>("all")
   const [projectFilter, setProjectFilter] = useState<string>("all")
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
   const filteredTasks = tasks.filter((t) => {
     const matchesSearch =
@@ -84,13 +86,16 @@ export default function TasksPage() {
               </select>
             </div>
 
-            <Button
-              onClick={() => setImportDialogOpen(true)}
-              className="gap-2"
-            >
-              <Upload className="h-4 w-4" />
-              Import from Excel
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Task
+              </Button>
+              <Button onClick={() => setImportDialogOpen(true)} className="gap-2">
+                <Upload className="h-4 w-4" />
+                Import from Excel
+              </Button>
+            </div>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">
@@ -109,7 +114,7 @@ export default function TasksPage() {
                     <div key={task.id} className="space-y-1">
                       <TaskItem task={task} />
                       <Link
-                        href={`/project/${projects.find((p) => p.id === task.projectId)?.slug}`}
+                        href={`/projects/${projects.find((p) => p.id === task.projectId)?.slug}`}
                         className="ml-8 text-xs text-primary hover:underline"
                       >
                         {getProjectName(task.projectId)}
@@ -128,6 +133,7 @@ export default function TasksPage() {
         </div>
 
         <ExcelImportDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} />
+        <CreateTaskDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
       </main>
     </div>
   )
