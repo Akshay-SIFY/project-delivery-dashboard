@@ -85,7 +85,9 @@ export function ProjectListItem({ project }: ProjectListItemProps) {
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
-              onClick={() => deleteProject(project.id)}
+              onClick={async () => {
+  await deleteProject(project.id)
+}}
             >
               Delete Project
             </DropdownMenuItem>
