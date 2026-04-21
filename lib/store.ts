@@ -205,24 +205,24 @@ const initialTasks: Task[] = [
 ]
 
 export const useStore = create<Store>((set, get) => ({
-  projects: initialProjects,
+  projects: [],
   tasks: initialTasks,
   teamMembers,
   searchQuery: "",
   setSearchQuery: (query) => set({ searchQuery: query }),
-  addProject: (project) => {
-    const slug = generateSlug(project.name)
-    const newProject: Project = {
-      ...project,
-      id: Date.now().toString(),
-      slug,
-      createdAt: new Date().toISOString().split("T")[0],
-      tasksCount: 0,
-      completedTasks: 0,
-      progress: 0,
-    }
-    set((state) => ({ projects: [...state.projects, newProject] }))
-  },
+addProject: async (project) => {
+  const res = await fetch("/api/projects", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(project),
+  })
+
+  const newProject = await res.json()
+
+  set((state) => ({
+    projects: [...state.projects, newProject],
+  }))
+},
   updateProject: (id, updates) => {
     set((state) => ({
       projects: state.projects.map((p) => (p.id === id ? { ...p, ...updates } : p)),
@@ -334,3 +334,11 @@ export const useStore = create<Store>((set, get) => ({
     return get().tasks.filter((t) => t.assignees.includes(memberName))
   },
 }))
+// Load projects from API
+if (typeof window !== "undefined") {
+  fetch("/api/projects")
+    .then((res) => res.json())
+    .then((data) => {
+      useStore.setState({ projects: data })
+    })
+}
