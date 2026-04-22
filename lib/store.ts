@@ -37,6 +37,22 @@ async function parseJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T
 }
 
+function recalculateProjectStats(projects: Project[], tasks: Task[]): Project[] {
+  return projects.map((project) => {
+    const projectTasks = tasks.filter((task) => task.projectId === project.id)
+    const completedTasks = projectTasks.filter((task) => task.status === "completed").length
+    const tasksCount = projectTasks.length
+    const progress = tasksCount > 0 ? Math.round((completedTasks / tasksCount) * 100) : 0
+
+    return {
+      ...project,
+      tasksCount,
+      completedTasks,
+      progress,
+    }
+  })
+}
+
 export const useStore = create<Store>((set, get) => ({
   projects: [],
   tasks: [],
@@ -48,17 +64,27 @@ export const useStore = create<Store>((set, get) => ({
   loadProjects: async () => {
     const response = await fetch("/api/projects", { method: "GET" })
     const projects = await parseJson<Project[]>(response)
-    set({ projects: Array.isArray(projects) ? projects : [] })
+
+    set((state) => ({
+      projects: recalculateProjectStats(Array.isArray(projects) ? projects : [], state.tasks),
+    }))
   },
 
   loadTasks: async () => {
     const response = await fetch("/api/tasks", { method: "GET" })
     const tasks = await parseJson<Task[]>(response)
-    set({ tasks: Array.isArray(tasks) ? tasks : [] })
+
+    set((state) => {
+      const safeTasks = Array.isArray(tasks) ? tasks : []
+      return {
+        tasks: safeTasks,
+        projects: recalculateProjectStats(state.projects, safeTasks),
+      }
+    })
   },
 
   loadTeamMembers: async () => {
-    const response = await fetch("/api/team-members", { method: "GET" })
+    const response = await fetch("/api/team", { method: "GET" })
     const teamMembers = await parseJson<TeamMember[]>(response)
     set({ teamMembers: Array.isArray(teamMembers) ? teamMembers : [] })
   },
@@ -71,33 +97,46 @@ export const useStore = create<Store>((set, get) => ({
     })
 
     const created = await parseJson<Project>(response)
-    set((state) => ({ projects: [...state.projects, created] }))
+
+    set((state) => ({
+      projects: recalculateProjectStats([...state.projects, created], state.tasks),
+    }))
   },
 
   updateProject: async (id, updates) => {
-    const response = await fetch("/api/projects", {
+    const currentProject = get().projects.find((project) => project.id === id)
+    if (!currentProject) return
+
+    const response = await fetch(`/api/projects/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, ...updates }),
+      body: JSON.stringify({ ...currentProject, ...updates, id }),
     })
 
     const updated = await parseJson<Project>(response)
+
     set((state) => ({
-      projects: state.projects.map((project) => (project.id === id ? updated : project)),
+      projects: recalculateProjectStats(
+        state.projects.map((project) => (project.id === id ? updated : project)),
+        state.tasks,
+      ),
     }))
   },
 
   deleteProject: async (id) => {
-    await fetch("/api/projects", {
+    await fetch(`/api/projects/${id}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
     })
 
-    set((state) => ({
-      projects: state.projects.filter((project) => project.id !== id),
-      tasks: state.tasks.filter((task) => task.projectId !== id),
-    }))
+    set((state) => {
+      const tasks = state.tasks.filter((task) => task.projectId !== id)
+      const projects = state.projects.filter((project) => project.id !== id)
+
+      return {
+        tasks,
+        projects: recalculateProjectStats(projects, tasks),
+      }
+    })
   },
 
   getProjectBySlug: (slug) => get().projects.find((project) => project.slug === slug),
@@ -110,83 +149,120 @@ export const useStore = create<Store>((set, get) => ({
     })
 
     const created = await parseJson<Task>(response)
-    set((state) => ({ tasks: [...state.tasks, created] }))
+
+    set((state) => {
+      const tasks = [...state.tasks, created]
+      return {
+        tasks,
+        projects: recalculateProjectStats(state.projects, tasks),
+      }
+    })
   },
 
   updateTask: async (id, updates) => {
-    const response = await fetch("/api/tasks", {
+    const currentTask = get().tasks.find((task) => task.id === id)
+    if (!currentTask) return
+
+    const response = await fetch(`/api/tasks/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, ...updates }),
+      body: JSON.stringify({ ...currentTask, ...updates, id }),
     })
 
     const updated = await parseJson<Task>(response)
-    set((state) => ({
-      tasks: state.tasks.map((task) => (task.id === id ? updated : task)),
-    }))
+
+    set((state) => {
+      const tasks = state.tasks.map((task) => (task.id === id ? updated : task))
+      return {
+        tasks,
+        projects: recalculateProjectStats(state.projects, tasks),
+      }
+    })
   },
 
   deleteTask: async (id) => {
-    await fetch("/api/tasks", {
+    await fetch(`/api/tasks/${id}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
     })
 
-    set((state) => ({
-      tasks: state.tasks.filter((task) => task.id !== id),
-    }))
+    set((state) => {
+      const tasks = state.tasks.filter((task) => task.id !== id)
+      return {
+        tasks,
+        projects: recalculateProjectStats(state.projects, tasks),
+      }
+    })
   },
 
   addTeamMember: async (member) => {
-    const response = await fetch("/api/team-members", {
+    const response = await fetch("/api/team", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(member),
     })
 
     const created = await parseJson<TeamMember>(response)
-    set((state) => ({ teamMembers: [...state.teamMembers, created] }))
+
+    set((state) => ({
+      teamMembers: [...state.teamMembers, created],
+    }))
   },
 
   updateTeamMember: async (id, updates) => {
-    const response = await fetch("/api/team-members", {
+    const existing = get().teamMembers.find((member) => member.id === id)
+    if (!existing) return
+
+    const response = await fetch(`/api/team/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, ...updates }),
+      body: JSON.stringify({ ...existing, ...updates, id }),
     })
 
     const updated = await parseJson<TeamMember>(response)
+
     set((state) => ({
       teamMembers: state.teamMembers.map((member) => (member.id === id ? updated : member)),
+      tasks:
+        updates.name && existing.name !== updates.name
+          ? state.tasks.map((task) => ({
+              ...task,
+              assignees: task.assignees.map((assignee) =>
+                assignee === existing.name ? updates.name! : assignee,
+              ),
+            }))
+          : state.tasks,
     }))
   },
 
   deleteTeamMember: async (id) => {
     const existing = get().teamMembers.find((member) => member.id === id) ?? null
 
-    const response = await fetch("/api/team-members", {
+    const response = await fetch(`/api/team/${id}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
     })
 
-    const result = await parseJson<{ deletedMember: TeamMember | null; affectedTasks: Task[] }>(response)
+    const result = await parseJson<{ deletedMember?: TeamMember | null; affectedTasks?: Task[] }>(response)
+    const affectedTasks = Array.isArray(result.affectedTasks) ? result.affectedTasks : []
 
     set((state) => ({
       teamMembers: state.teamMembers.filter((member) => member.id !== id),
       tasks:
-        result.affectedTasks.length > 0
+        affectedTasks.length > 0
           ? state.tasks.map((task) => {
-              const affected = result.affectedTasks.find((affectedTask) => affectedTask.id === task.id)
+              const affected = affectedTasks.find((affectedTask) => affectedTask.id === task.id)
               return affected ?? task
             })
-          : state.tasks,
+          : existing
+            ? state.tasks.map((task) => ({
+                ...task,
+                assignees: task.assignees.filter((assignee) => assignee !== existing.name),
+              }))
+            : state.tasks,
     }))
 
     return {
       deletedMember: result.deletedMember ?? existing,
-      affectedTasks: result.affectedTasks,
+      affectedTasks,
     }
   },
 
