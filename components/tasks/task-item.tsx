@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Calendar, MoreHorizontal, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,7 +10,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { Task, TaskStatus } from "@/lib/types"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import type { Task, TaskPriority, TaskStatus } from "@/lib/types"
 import { useStore } from "@/lib/store"
 
 interface TaskItemProps {
@@ -17,7 +24,16 @@ interface TaskItemProps {
 }
 
 export function TaskItem({ task }: TaskItemProps) {
-  const { updateTask, deleteTask } = useStore()
+  const { updateTask, deleteTask, teamMembers, tasks } = useStore()
+  const [editOpen, setEditOpen] = useState(false)
+  const [title, setTitle] = useState(task.title)
+  const [description, setDescription] = useState(task.description)
+  const [priority, setPriority] = useState<TaskPriority>(task.priority)
+  const [status, setStatus] = useState<TaskStatus>(task.status)
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>(task.assignees)
+  const [dependencies, setDependencies] = useState<string[]>(task.dependencies)
+  const [startDate, setStartDate] = useState(task.startDate)
+  const [dueDate, setDueDate] = useState(task.dueDate)
 
   const priorityColors = {
     high: "bg-chart-4/10 text-chart-4 border-chart-4/30",
@@ -38,7 +54,40 @@ export function TaskItem({ task }: TaskItemProps) {
     new Date(task.dueDate).toDateString() !== new Date().toDateString()
 
   const handleStatusChange = (newStatus: TaskStatus) => {
-    updateTask(task.id, { status: newStatus })
+    void updateTask(task.id, { status: newStatus })
+  }
+
+  const projectTasks = tasks.filter((t) => t.projectId === task.projectId && t.id !== task.id)
+
+  const handleAssigneeToggle = (memberName: string) => {
+    setSelectedAssignees((prev) =>
+      prev.includes(memberName)
+        ? prev.filter((name) => name !== memberName)
+        : [...prev, memberName]
+    )
+  }
+
+  const handleDependencyToggle = (taskId: string) => {
+    setDependencies((prev) =>
+      prev.includes(taskId)
+        ? prev.filter((dependencyId) => dependencyId !== taskId)
+        : [...prev, taskId]
+    )
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await updateTask(task.id, {
+      title: title.trim(),
+      description: description.trim(),
+      priority,
+      status,
+      assignees: selectedAssignees,
+      dependencies,
+      startDate,
+      dueDate,
+    })
+    setEditOpen(false)
   }
 
   return (
@@ -86,10 +135,13 @@ export function TaskItem({ task }: TaskItemProps) {
               <DropdownMenuItem onClick={() => handleStatusChange("completed")}>
                 Mark as Completed
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                Edit Task
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
-                onClick={() => deleteTask(task.id)}
+                onClick={() => void deleteTask(task.id)}
               >
                 Delete Task
               </DropdownMenuItem>
@@ -141,6 +193,97 @@ export function TaskItem({ task }: TaskItemProps) {
           )}
         </div>
       </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
+              required
+            />
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1 resize-none"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as TaskPriority)}
+                className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as TaskStatus)}
+                className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
+              >
+                <option value="todo">To Do</option>
+                <option value="in-progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+            <div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border border-input p-2">
+              {teamMembers.map((member) => (
+                <label key={member.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={selectedAssignees.includes(member.name)}
+                    onChange={() => handleAssigneeToggle(member.name)}
+                  />
+                  {member.name}
+                </label>
+              ))}
+            </div>
+            {projectTasks.length > 0 && (
+              <div className="max-h-24 space-y-1 overflow-y-auto rounded-lg border border-input p-2">
+                {projectTasks.map((projectTask) => (
+                  <label key={projectTask.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={dependencies.includes(projectTask.id)}
+                      onChange={() => handleDependencyToggle(projectTask.id)}
+                    />
+                    {projectTask.title}
+                  </label>
+                ))}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
+                required
+              />
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -31,8 +31,8 @@ export default function TeamPage() {
     return tasks.filter((t) => t.assignees.includes(memberName) && t.status === "completed").length
   }
 
-  const handleAddMember = (member: Omit<TeamMember, "id">) => {
-    addTeamMember(member)
+  const handleAddMember = async (member: Omit<TeamMember, "id">) => {
+    await addTeamMember(member)
     setAddDialogOpen(false)
   }
 
@@ -41,8 +41,8 @@ export default function TeamPage() {
     setEditDialogOpen(true)
   }
 
-  const handleUpdateMember = (id: string, updates: Partial<TeamMember>) => {
-    updateTeamMember(id, updates)
+  const handleUpdateMember = async (id: string, updates: Partial<TeamMember>) => {
+    await updateTeamMember(id, updates)
     setEditDialogOpen(false)
     setSelectedMember(null)
   }
@@ -54,9 +54,9 @@ export default function TeamPage() {
     setDeleteDialogOpen(true)
   }
 
-  const handleDeleteMember = () => {
+  const handleDeleteMember = async () => {
     if (!selectedMember) return
-    deleteTeamMember(selectedMember.id)
+    await deleteTeamMember(selectedMember.id)
     setDeleteDialogOpen(false)
     setSelectedMember(null)
   }

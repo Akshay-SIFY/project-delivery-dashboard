@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,7 @@ import type { TeamMember, Task } from "@/lib/types"
 interface AddTeamMemberDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onAdd: (member: Omit<TeamMember, "id">) => void
+  onAdd: (member: Omit<TeamMember, "id">) => Promise<void>
 }
 
 export function AddTeamMemberDialog({
@@ -28,7 +28,7 @@ export function AddTeamMemberDialog({
   const [role, setRole] = useState("")
   const [error, setError] = useState("")
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
 
@@ -44,7 +44,7 @@ export function AddTeamMemberDialog({
       .toUpperCase()
       .slice(0, 2)
 
-    onAdd({
+    await onAdd({
       name: name.trim(),
       role: role.trim(),
       avatar,
@@ -114,7 +114,7 @@ interface EditTeamMemberDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   member: TeamMember | null
-  onUpdate: (id: string, updates: Partial<TeamMember>) => void
+  onUpdate: (id: string, updates: Partial<TeamMember>) => Promise<void>
 }
 
 export function EditTeamMemberDialog({
@@ -127,7 +127,12 @@ export function EditTeamMemberDialog({
   const [role, setRole] = useState(member?.role || "")
   const [error, setError] = useState("")
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    setName(member?.name || "")
+    setRole(member?.role || "")
+  }, [member, open])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
 
@@ -145,7 +150,7 @@ export function EditTeamMemberDialog({
       .toUpperCase()
       .slice(0, 2)
 
-    onUpdate(member.id, {
+    await onUpdate(member.id, {
       name: name.trim(),
       role: role.trim(),
       avatar,

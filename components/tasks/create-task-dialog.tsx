@@ -14,11 +14,11 @@ import type { TaskPriority, TaskStatus } from "@/lib/types"
 interface CreateTaskDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  projectId: string
+  projectId?: string
 }
 
 export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDialogProps) {
-  const { addTask, teamMembers, tasks } = useStore()
+  const { addTask, teamMembers, tasks, projects } = useStore()
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [priority, setPriority] = useState<TaskPriority>("medium")
@@ -28,8 +28,10 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
   const [startDate, setStartDate] = useState("")
   const [dueDate, setDueDate] = useState("")
   const [dateError, setDateError] = useState("")
+  const [selectedProjectId, setSelectedProjectId] = useState(projectId ?? "")
 
-  const projectTasks = tasks.filter((t) => t.projectId === projectId)
+  const effectiveProjectId = projectId ?? selectedProjectId
+  const projectTasks = tasks.filter((t) => t.projectId === effectiveProjectId)
 
   const handleAssigneeToggle = (memberName: string) => {
     setSelectedAssignees((prev) =>
@@ -47,13 +49,18 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
     )
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     setDateError("")
     
     if (!title.trim() || !startDate || !dueDate) {
       setDateError("Both start and due dates are required")
+      return
+    }
+
+    if (!effectiveProjectId) {
+      setDateError("Please select a project")
       return
     }
 
@@ -67,7 +74,7 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
       return
     }
 
-    addTask({
+    await addTask({
       title: title.trim(),
       description: description.trim(),
       priority,
@@ -76,7 +83,7 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
       dependencies,
       startDate,
       dueDate,
-      projectId,
+      projectId: effectiveProjectId,
     })
 
     setTitle("")
@@ -87,6 +94,7 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
     setDependencies([])
     setStartDate("")
     setDueDate("")
+    setSelectedProjectId(projectId ?? "")
     setDateError("")
     onOpenChange(false)
   }
@@ -98,6 +106,31 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
           <DialogTitle>Create New Task</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {!projectId && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Project
+              </label>
+              <select
+                value={selectedProjectId}
+                onChange={(e) => {
+                  setSelectedProjectId(e.target.value)
+                  setDependencies([])
+                  setDateError("")
+                }}
+                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
+                required
+              >
+                <option value="">Select a project</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">
               Task Title
