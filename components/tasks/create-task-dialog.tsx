@@ -29,6 +29,7 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
   const [dueDate, setDueDate] = useState("")
   const [dateError, setDateError] = useState("")
   const [selectedProjectId, setSelectedProjectId] = useState(projectId ?? "")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const effectiveProjectId = projectId ?? selectedProjectId
   const projectTasks = tasks.filter((t) => t.projectId === effectiveProjectId)
@@ -74,29 +75,36 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
       return
     }
 
-    await addTask({
-      title: title.trim(),
-      description: description.trim(),
-      priority,
-      status,
-      assignees: selectedAssignees,
-      dependencies,
-      startDate,
-      dueDate,
-      projectId: effectiveProjectId,
-    })
+    try {
+      setIsSubmitting(true)
+      await addTask({
+        title: title.trim(),
+        description: description.trim(),
+        priority,
+        status,
+        assignees: selectedAssignees,
+        dependencies,
+        startDate,
+        dueDate,
+        projectId: effectiveProjectId,
+      })
 
-    setTitle("")
-    setDescription("")
-    setPriority("medium")
-    setStatus("todo")
-    setSelectedAssignees([])
-    setDependencies([])
-    setStartDate("")
-    setDueDate("")
-    setSelectedProjectId(projectId ?? "")
-    setDateError("")
-    onOpenChange(false)
+      setTitle("")
+      setDescription("")
+      setPriority("medium")
+      setStatus("todo")
+      setSelectedAssignees([])
+      setDependencies([])
+      setStartDate("")
+      setDueDate("")
+      setSelectedProjectId(projectId ?? "")
+      setDateError("")
+      onOpenChange(false)
+    } catch (error) {
+      setDateError(error instanceof Error ? error.message : "Failed to create task")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -284,7 +292,7 @@ export function CreateTaskDialog({ open, onOpenChange, projectId }: CreateTaskDi
             >
               Cancel
             </Button>
-            <Button type="submit">Create Task</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Creating..." : "Create Task"}</Button>
           </div>
         </form>
       </DialogContent>

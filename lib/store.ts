@@ -8,6 +8,7 @@ interface Store {
   tasks: Task[]
   teamMembers: TeamMember[]
   searchQuery: string
+  projectsLoaded: boolean
   setSearchQuery: (query: string) => void
   addProject: (
     project: Omit<
@@ -31,10 +32,17 @@ interface Store {
 }
 
 async function parseJson<T>(response: Response): Promise<T> {
+  const payload = await response.json().catch(() => null)
+
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status} ${response.statusText}`)
+    const message =
+      payload && typeof payload === "object" && "error" in payload
+        ? String((payload as { error: unknown }).error)
+        : `Request failed: ${response.status} ${response.statusText}`
+    throw new Error(message)
   }
-  return (await response.json()) as T
+
+  return payload as T
 }
 
 function recalculateProjectStats(projects: Project[], tasks: Task[]): Project[] {
@@ -58,6 +66,7 @@ export const useStore = create<Store>((set, get) => ({
   tasks: [],
   teamMembers: [],
   searchQuery: "",
+  projectsLoaded: false,
 
   setSearchQuery: (query) => set({ searchQuery: query }),
 
@@ -67,6 +76,7 @@ export const useStore = create<Store>((set, get) => ({
 
     set((state) => ({
       projects: recalculateProjectStats(Array.isArray(projects) ? projects : [], state.tasks),
+      projectsLoaded: true,
     }))
   },
 
@@ -124,9 +134,13 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   deleteProject: async (id) => {
-    await fetch(`/api/projects/${id}`, {
+    const response = await fetch(`/api/projects/${id}`, {
       method: "DELETE",
     })
+
+    if (!response.ok) {
+      await parseJson(response)
+    }
 
     set((state) => {
       const tasks = state.tasks.filter((task) => task.projectId !== id)
@@ -181,9 +195,13 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   deleteTask: async (id) => {
-    await fetch(`/api/tasks/${id}`, {
+    const response = await fetch(`/api/tasks/${id}`, {
       method: "DELETE",
     })
+
+    if (!response.ok) {
+      await parseJson(response)
+    }
 
     set((state) => {
       const tasks = state.tasks.filter((task) => task.id !== id)

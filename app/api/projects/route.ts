@@ -1,8 +1,4 @@
-import { Pool } from "pg"
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-})
+import { ensureSchema, pool } from "@/lib/db"
 
 function generateSlug(name: string): string {
   return name
@@ -15,6 +11,7 @@ function generateSlug(name: string): string {
 
 export async function GET() {
   try {
+    await ensureSchema()
     const result = await pool.query(`
       SELECT
         id::text,
@@ -44,6 +41,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    await ensureSchema()
     const body = await req.json()
 
     const name = body.name
@@ -90,6 +88,7 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
+    await ensureSchema()
     const body = await req.json()
 
     const id = body.id
@@ -139,6 +138,7 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    await ensureSchema()
     const { id } = await req.json()
 
     await pool.query("DELETE FROM tasks WHERE project_id = $1", [id])

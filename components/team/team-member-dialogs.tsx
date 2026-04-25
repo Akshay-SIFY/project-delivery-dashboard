@@ -27,6 +27,7 @@ export function AddTeamMemberDialog({
   const [name, setName] = useState("")
   const [role, setRole] = useState("")
   const [error, setError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,15 +45,22 @@ export function AddTeamMemberDialog({
       .toUpperCase()
       .slice(0, 2)
 
-    await onAdd({
-      name: name.trim(),
-      role: role.trim(),
-      avatar,
-    })
+    try {
+      setIsSubmitting(true)
+      await onAdd({
+        name: name.trim(),
+        role: role.trim(),
+        avatar,
+      })
 
-    setName("")
-    setRole("")
-    onOpenChange(false)
+      setName("")
+      setRole("")
+      onOpenChange(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add team member")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -102,7 +110,7 @@ export function AddTeamMemberDialog({
             >
               Cancel
             </Button>
-            <Button type="submit">Add Member</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Adding..." : "Add Member"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -126,6 +134,7 @@ export function EditTeamMemberDialog({
   const [name, setName] = useState(member?.name || "")
   const [role, setRole] = useState(member?.role || "")
   const [error, setError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     setName(member?.name || "")
@@ -150,13 +159,20 @@ export function EditTeamMemberDialog({
       .toUpperCase()
       .slice(0, 2)
 
-    await onUpdate(member.id, {
-      name: name.trim(),
-      role: role.trim(),
-      avatar,
-    })
+    try {
+      setIsSubmitting(true)
+      await onUpdate(member.id, {
+        name: name.trim(),
+        role: role.trim(),
+        avatar,
+      })
 
-    onOpenChange(false)
+      onOpenChange(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update team member")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -204,7 +220,7 @@ export function EditTeamMemberDialog({
             >
               Cancel
             </Button>
-            <Button type="submit">Update Member</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Updating..." : "Update Member"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -217,7 +233,7 @@ interface DeleteTeamMemberDialogProps {
   onOpenChange: (open: boolean) => void
   member: TeamMember | null
   affectedTasks: Task[]
-  onDelete: () => void
+  onDelete: () => Promise<void>
 }
 
 export function DeleteTeamMemberDialog({
@@ -227,6 +243,8 @@ export function DeleteTeamMemberDialog({
   affectedTasks,
   onDelete,
 }: DeleteTeamMemberDialogProps) {
+  const [isDeleting, setIsDeleting] = useState(false)
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -275,12 +293,18 @@ export function DeleteTeamMemberDialog({
           </Button>
           <Button
             variant="destructive"
-            onClick={() => {
-              onDelete()
-              onOpenChange(false)
+            onClick={async () => {
+              setIsDeleting(true)
+              try {
+                await onDelete()
+                onOpenChange(false)
+              } finally {
+                setIsDeleting(false)
+              }
             }}
+            disabled={isDeleting}
           >
-            Delete Member
+            {isDeleting ? "Deleting..." : "Delete Member"}
           </Button>
         </DialogFooter>
       </DialogContent>
