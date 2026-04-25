@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Download, Upload, AlertCircle, CheckCircle } from "lucide-react"
+import { useMemo, useState } from "react"
+import { Download, Upload, AlertCircle, CheckCircle, FileWarning } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -10,178 +10,164 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useStore } from "@/lib/store"
-import { downloadSampleExcel, parseCSV } from "@/lib/excel-utils"
-import type { TaskPriority, TaskStatus } from "@/lib/types"
+import { downloadSampleExcel, parseCSV, type ExcelTaskRow } from "@/lib/excel-utils"
 
 interface ExcelImportDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-interface ImportPreview {
-  projectName: string
-  taskName: string
-  description: string
-  assignedTo: string
-  dependencies: string
-  startDate: string
-  endDate: string
-  status: string
-  priority: string
-  errors?: string[]
+interface ImportFailure {
+  rowNumber: number
+  reason: string
+}
+
+interface ImportResponse {
+  totalRows: number
+  importedCount: number
+  failedCount: number
+  failedRows: ImportFailure[]
 }
 
 export function ExcelImportDialog({ open, onOpenChange }: ExcelImportDialogProps) {
-  const { addTask, projects, teamMembers } = useStore()
+  const { loadTasks } = useStore()
   const [file, setFile] = useState<File | null>(null)
-  const [preview, setPreview] = useState<ImportPreview[]>([])
-  const [importErrors, setImportErrors] = useState<string[]>([])
+  const [rows, setRows] = useState<ExcelTaskRow[]>([])
+  const [parsingError, setParsingError] = useState<string | null>(null)
+  const [importFailures, setImportFailures] = useState<ImportFailure[]>([])
+  const [importSummary, setImportSummary] = useState<ImportResponse | null>(null)
   const [importing, setImporting] = useState(false)
+  const [progress, setProgress] = useState(0)
 
-  const validateImportData = (rows: any[]): { valid: ImportPreview[]; errors: string[] } => {
-    const validRows: ImportPreview[] = []
-    const errors: string[] = []
+  const totalRows = rows.length
 
-    rows.forEach((row, index) => {
-      const rowErrors: string[] = []
-
-      // Validate project name
-      if (!row.projectName || !row.projectName.trim()) {
-        rowErrors.push("Project name is required")
-      } else {
-        const project = projects.find((p) => p.name.toLowerCase() === row.projectName.toLowerCase())
-        if (!project) {
-          rowErrors.push(`Project "${row.projectName}" not found`)
-        }
-      }
-
-      // Validate task name
-      if (!row.taskName || !row.taskName.trim()) {
-        rowErrors.push("Task name is required")
-      }
-
-      // Validate assignees
-      if (!row.assignedTo || !row.assignedTo.trim()) {
-        rowErrors.push("At least one assignee is required")
-      } else {
-        const assignees = row.assignedTo.split(",").map((a: string) => a.trim())
-        const invalidAssignees = assignees.filter(
-          (name: string) => !teamMembers.find((m) => m.name.toLowerCase() === name.toLowerCase())
-        )
-        if (invalidAssignees.length > 0) {
-          rowErrors.push(`Invalid assignee(s): ${invalidAssignees.join(", ")}`)
-        }
-      }
-
-      // Validate dates
-      if (!row.startDate || !row.startDate.trim()) {
-        rowErrors.push("Start date is required")
-      }
-      if (!row.endDate || !row.endDate.trim()) {
-        rowErrors.push("End date is required")
-      } else if (row.startDate && new Date(row.endDate) < new Date(row.startDate)) {
-        rowErrors.push("End date cannot be before start date")
-      }
-
-      // Validate status
-      const validStatuses: TaskStatus[] = ["todo", "in-progress", "completed"]
-      if (!row.status || !validStatuses.includes(row.status.toLowerCase())) {
-        rowErrors.push(`Status must be one of: ${validStatuses.join(", ")}`)
-      }
-
-      // Validate priority
-      const validPriorities: TaskPriority[] = ["low", "medium", "high"]
-      if (!row.priority || !validPriorities.includes(row.priority.toLowerCase())) {
-        rowErrors.push(`Priority must be one of: ${validPriorities.join(", ")}`)
-      }
-
-      if (rowErrors.length === 0) {
-        validRows.push({
-          ...row,
-          errors: undefined,
-        })
-      } else {
-        errors.push(`Row ${index + 2}: ${rowErrors.join("; ")}`)
-      }
+  const failedCsvContent = useMemo(() => {
+    if (importFailures.length === 0) return ""
+    const header = "row_number,reason"
+    const lines = importFailures.map((failure) => {
+      const escapedReason = `"${failure.reason.replace(/"/g, '""')}"`
+      return `${failure.rowNumber},${escapedReason}`
     })
 
-    return { valid: validRows, errors }
-  }
+    return `${header}\n${lines.join("\n")}`
+  }, [importFailures])
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (!selectedFile) return
 
     setFile(selectedFile)
-    setImportErrors([])
-    setPreview([])
+    setRows([])
+    setParsingError(null)
+    setImportFailures([])
+    setImportSummary(null)
+    setProgress(0)
 
-    const text = await selectedFile.text()
-    const rows = parseCSV(text)
+    if (!selectedFile.name.toLowerCase().endsWith(".csv")) {
+      setParsingError("Only CSV import is supported in this build. Please export the Excel file as CSV and retry.")
+      return
+    }
 
-    const { valid, errors } = validateImportData(rows)
-    setPreview(valid)
-    setImportErrors(errors)
+    try {
+      const text = await selectedFile.text()
+      const parsedRows = parseCSV(text)
+      if (parsedRows.length === 0) {
+        setParsingError("No task rows were found in the file.")
+        return
+      }
+
+      setRows(parsedRows)
+    } catch (error) {
+      setParsingError(error instanceof Error ? error.message : "Failed to read the selected file")
+    }
   }
 
   const handleImport = async () => {
-    if (preview.length === 0) {
-      setImportErrors(["No valid rows to import"])
+    if (rows.length === 0) {
+      setParsingError("No rows to import")
       return
     }
 
     setImporting(true)
+    setProgress(5)
+    setParsingError(null)
+    setImportFailures([])
+    setImportSummary(null)
 
     try {
-      await Promise.all(preview.map(async (row) => {
-        const project = projects.find((p) => p.name.toLowerCase() === row.projectName.toLowerCase())
-        if (!project) return
+      setProgress(20)
+      const response = await fetch("/api/tasks/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tasks: rows }),
+      })
 
-        const assignees = row.assignedTo
-          .split(",")
-          .map((a: string) => a.trim())
-          .filter((a) => teamMembers.find((m) => m.name.toLowerCase() === a.toLowerCase()))
-          .map((a) => a.charAt(0).toUpperCase() + a.slice(1))
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        const message = payload && typeof payload === "object" && "error" in payload
+          ? String((payload as { error: unknown }).error)
+          : "Failed to import tasks"
+        throw new Error(message)
+      }
 
-        await addTask({
-          title: row.taskName,
-          description: row.description || "",
-          priority: row.priority.toLowerCase() as TaskPriority,
-          status: row.status.toLowerCase() as TaskStatus,
-          assignees,
-          dependencies: [],
-          startDate: row.startDate,
-          dueDate: row.endDate,
-          projectId: project.id,
-        })
-      }))
+      const summary = payload as ImportResponse
+      setImportSummary(summary)
+      setImportFailures(Array.isArray(summary.failedRows) ? summary.failedRows : [])
+      setProgress(100)
 
-      setFile(null)
-      setPreview([])
-      setImportErrors([])
-      setImporting(false)
-      onOpenChange(false)
+      await loadTasks()
     } catch (error) {
-      setImportErrors(["Failed to import tasks. Please try again."])
+      setParsingError(error instanceof Error ? error.message : "Failed to import tasks")
+      setProgress(0)
+    } finally {
       setImporting(false)
     }
   }
 
+  const downloadFailedRowsReport = () => {
+    if (!failedCsvContent) return
+
+    const blob = new Blob([failedCsvContent], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+
+    link.setAttribute("href", url)
+    link.setAttribute("download", "task-import-failed-rows.csv")
+    link.style.visibility = "hidden"
+
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        onOpenChange(isOpen)
+        if (!isOpen) {
+          setFile(null)
+          setRows([])
+          setParsingError(null)
+          setImportSummary(null)
+          setImportFailures([])
+          setProgress(0)
+        }
+      }}
+    >
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Import Tasks from Excel</DialogTitle>
+          <DialogTitle>Import Tasks from Excel/CSV</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Download Sample Section */}
           <div className="rounded-lg border border-dashed border-muted-foreground/50 bg-muted/20 p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="font-medium text-foreground">Download Sample File</h3>
                 <p className="text-sm text-muted-foreground">
-                  Get a template with the correct column format
+                  Use this template for the expected column names.
                 </p>
               </div>
               <Button
@@ -197,78 +183,89 @@ export function ExcelImportDialog({ open, onOpenChange }: ExcelImportDialogProps
             </div>
           </div>
 
-          {/* File Upload Section */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Upload CSV File
-            </label>
+            <label className="text-sm font-medium text-foreground">Upload CSV File</label>
             <input
               type="file"
               accept=".csv"
               onChange={handleFileChange}
-              className="block w-full text-sm text-muted-foreground
-                file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground hover:file:bg-primary/90"
+              className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground hover:file:bg-primary/90"
             />
+            {file && <p className="text-xs text-muted-foreground">Selected file: {file.name}</p>}
           </div>
 
-          {/* Error Messages */}
-          {importErrors.length > 0 && (
+          {parsingError && (
             <div className="rounded-lg bg-destructive/10 p-4">
               <div className="flex gap-2">
                 <AlertCircle className="h-5 w-5 shrink-0 text-destructive" />
-                <div className="space-y-1">
-                  <p className="font-medium text-destructive">Import Issues</p>
-                  <ul className="space-y-1 text-sm text-destructive">
-                    {importErrors.map((error, idx) => (
-                      <li key={idx}>• {error}</li>
-                    ))}
-                  </ul>
-                </div>
+                <p className="text-sm text-destructive">{parsingError}</p>
               </div>
             </div>
           )}
 
-          {/* Preview Section */}
-          {preview.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 rounded-lg bg-chart-2/10 p-3">
+          {rows.length > 0 && !importSummary && (
+            <div className="rounded-lg bg-chart-2/10 p-3">
+              <div className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-chart-2" />
                 <span className="text-sm font-medium text-foreground">
-                  {preview.length} task(s) ready to import
+                  Ready to import {rows.length} task(s)
                 </span>
-              </div>
-
-              <div className="max-h-60 space-y-2 overflow-y-auto rounded-lg border border-input bg-background p-3">
-                {preview.map((row, idx) => (
-                  <div key={idx} className="space-y-1 border-b border-border pb-2 last:border-0">
-                    <p className="font-medium text-foreground">{row.taskName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Project: {row.projectName} • Assigned to: {row.assignedTo}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {row.startDate} to {row.endDate} • {row.priority} • {row.status}
-                    </p>
-                  </div>
-                ))}
               </div>
             </div>
           )}
 
-          {/* Action Buttons */}
+          {importing && (
+            <div className="space-y-2 rounded-lg border border-input bg-background p-3">
+              <p className="text-sm font-medium text-foreground">Importing tasks...</p>
+              <div className="h-2 w-full overflow-hidden rounded bg-muted">
+                <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+              </div>
+              <p className="text-xs text-muted-foreground">Progress: {progress}%</p>
+            </div>
+          )}
+
+          {importSummary && (
+            <div className="space-y-3 rounded-lg border border-input bg-background p-4">
+              <p className="text-sm font-semibold text-foreground">Import Summary</p>
+              <ul className="space-y-1 text-sm text-muted-foreground">
+                <li>Total rows detected: {importSummary.totalRows}</li>
+                <li>Successfully imported: {importSummary.importedCount}</li>
+                <li>Failed rows: {importSummary.failedCount}</li>
+              </ul>
+
+              {importFailures.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-destructive">Failed rows report</p>
+                    <Button type="button" variant="outline" size="sm" onClick={downloadFailedRowsReport}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Download Failed Rows
+                    </Button>
+                  </div>
+                  <div className="max-h-40 space-y-1 overflow-y-auto rounded-md bg-destructive/10 p-2 text-sm">
+                    {importFailures.map((failure) => (
+                      <p key={`${failure.rowNumber}-${failure.reason}`} className="text-destructive">
+                        Row {failure.rowNumber} failed: {failure.reason}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {importFailures.length === 0 && (
+                <div className="flex items-center gap-2 rounded-md bg-chart-2/10 p-2 text-sm text-chart-2">
+                  <FileWarning className="h-4 w-4" />
+                  All rows imported successfully.
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex justify-end gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button
-              type="button"
-              onClick={handleImport}
-              disabled={preview.length === 0 || importing}
-              className="gap-2"
-            >
+            <Button type="button" onClick={handleImport} disabled={totalRows === 0 || importing} className="gap-2">
               <Upload className="h-4 w-4" />
               {importing ? "Importing..." : "Import Tasks"}
             </Button>
