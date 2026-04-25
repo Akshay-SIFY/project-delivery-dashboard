@@ -1,8 +1,4 @@
-import { Pool } from "pg"
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-})
+import { ensureSchema, pool } from "@/lib/db"
 
 function parseList(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -23,8 +19,19 @@ function parseList(value: unknown): string[] {
   return []
 }
 
+function mapTaskRow(row: Record<string, unknown>) {
+  return {
+    ...row,
+    assignees: parseList(row.assignees),
+    dependencies: parseList(row.dependencies),
+    links: parseList(row.links),
+  }
+}
+
 export async function GET() {
   try {
+    await ensureSchema()
+
     const result = await pool.query(`
       SELECT
         id::text,
@@ -34,6 +41,9 @@ export async function GET() {
         status,
         assignees,
         dependencies,
+        remarks,
+        notes,
+        links,
         start_date AS "startDate",
         due_date AS "dueDate",
         project_id::text AS "projectId",
@@ -42,17 +52,11 @@ export async function GET() {
       ORDER BY id DESC
     `)
 
-    const rows = result.rows.map((row) => ({
-      ...row,
-      assignees: parseList(row.assignees),
-      dependencies: parseList(row.dependencies),
-    }))
-
-    return Response.json(rows)
+    return Response.json(result.rows.map(mapTaskRow))
   } catch (error) {
     console.error("GET /api/tasks error:", error)
     return Response.json(
-      { error: error instanceof Error ? error.message : String(error) },
+      { error: error instanceof Error ? error.message : "Failed to fetch tasks" },
       { status: 500 }
     )
   }
@@ -60,24 +64,31 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    await ensureSchema()
     const body = await req.json()
 
-    const title = body.title
-    const description = body.description ?? ""
-    const priority = body.priority ?? "medium"
-    const status = body.status ?? "todo"
+    const title = typeof body.title === "string" ? body.title.trim() : ""
+    const description = typeof body.description === "string" ? body.description.trim() : ""
+    const priority = typeof body.priority === "string" ? body.priority : "medium"
+    const status = typeof body.status === "string" ? body.status : "todo"
     const assignees = JSON.stringify(Array.isArray(body.assignees) ? body.assignees : [])
     const dependencies = JSON.stringify(Array.isArray(body.dependencies) ? body.dependencies : [])
-    const startDate = body.startDate
-    const dueDate = body.dueDate
-    const projectId = body.projectId
-    const createdAt = new Date().toISOString().split("T")[0]
+    const remarks = typeof body.remarks === "string" ? body.remarks : null
+    const notes = typeof body.notes === "string" ? body.notes : null
+    const links = JSON.stringify(Array.isArray(body.links) ? body.links : [])
+    const startDate = typeof body.startDate === "string" && body.startDate ? body.startDate : null
+    const dueDate = typeof body.dueDate === "string" && body.dueDate ? body.dueDate : null
+    const projectId = typeof body.projectId === "string" && body.projectId ? body.projectId : null
+
+    if (!title) {
+      return Response.json({ error: "title is required" }, { status: 400 })
+    }
 
     const result = await pool.query(
       `
       INSERT INTO tasks
-      (title, description, priority, status, assignees, dependencies, start_date, due_date, project_id, created_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      (title, description, priority, status, assignees, dependencies, remarks, notes, links, start_date, due_date, project_id)
+      VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8, $9::jsonb, $10, $11, $12)
       RETURNING
         id::text,
         title,
@@ -86,24 +97,22 @@ export async function POST(req: Request) {
         status,
         assignees,
         dependencies,
+        remarks,
+        notes,
+        links,
         start_date AS "startDate",
         due_date AS "dueDate",
         project_id::text AS "projectId",
         created_at AS "createdAt"
       `,
-      [title, description, priority, status, assignees, dependencies, startDate, dueDate, projectId, createdAt]
+      [title, description, priority, status, assignees, dependencies, remarks, notes, links, startDate, dueDate, projectId]
     )
 
-    const row = result.rows[0]
-    return Response.json({
-      ...row,
-      assignees: parseList(row.assignees),
-      dependencies: parseList(row.dependencies),
-    })
+    return Response.json(mapTaskRow(result.rows[0]), { status: 201 })
   } catch (error) {
     console.error("POST /api/tasks error:", error)
     return Response.json(
-      { error: error instanceof Error ? error.message : String(error) },
+      { error: error instanceof Error ? error.message : "Failed to create task" },
       { status: 500 }
     )
   }
