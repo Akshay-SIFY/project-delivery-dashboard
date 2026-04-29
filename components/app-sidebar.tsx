@@ -55,11 +55,11 @@ export function AppSidebar() {
       <div className="border-t border-sidebar-border p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sidebar-accent text-sm font-medium">
-            SP
+            AS
           </div>
           <div className="flex-1 truncate">
-            <p className="text-sm font-medium">Sant Prasad Gupta</p>
-            <p className="text-xs text-sidebar-foreground/60">Manager</p>
+            <p className="text-sm font-medium">Akshay Singh</p>
+            <p className="text-xs text-sidebar-foreground/60">Content Specialist | Product Builder</p>
           </div>
         </div>
       </div>
