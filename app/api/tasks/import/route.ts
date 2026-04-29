@@ -81,6 +81,43 @@ function parseDateToISO(value: unknown): string | null {
     return str
   }
 
+  const dayMonthYearMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+  if (dayMonthYearMatch) {
+    const first = Number(dayMonthYearMatch[1])
+    const second = Number(dayMonthYearMatch[2])
+    const year = Number(dayMonthYearMatch[3])
+
+    let day = first
+    let month = second
+
+    if (first > 12 && second <= 12) {
+      day = first
+      month = second
+    } else if (second > 12 && first <= 12) {
+      month = first
+      day = second
+    } else if (str.includes("-")) {
+      // Prefer DD-MM-YYYY for dash-separated dates.
+      day = first
+      month = second
+    } else {
+      // Ambiguous slash-separated format defaults to MM/DD/YYYY.
+      month = first
+      day = second
+    }
+
+    const parsed = new Date(Date.UTC(year, month - 1, day))
+    if (
+      !Number.isNaN(parsed.getTime()) &&
+      parsed.getUTCFullYear() === year &&
+      parsed.getUTCMonth() === month - 1 &&
+      parsed.getUTCDate() === day
+    ) {
+      return parsed.toISOString().slice(0, 10)
+    }
+    return null
+  }
+
   if (/^\d{5}(\.\d+)?$/.test(str)) {
     const numeric = Number(str)
     if (!Number.isNaN(numeric)) {

@@ -12,11 +12,17 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useStore } from "@/lib/store"
 
-export default function ProjectDetailPage({ params }: { params: { slug: string } }) {
-  const { slug } = params
+export default function ProjectDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  const [slug, setSlug] = useState<string>("")
   const { tasks, searchQuery, getProjectBySlug, loadProjects, projectsLoaded } = useStore()
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>("all")
+
+  useEffect(() => {
+    void params.then((resolved) => {
+      setSlug(resolved.slug)
+    })
+  }, [params])
 
   useEffect(() => {
     if (!projectsLoaded) {
@@ -24,9 +30,9 @@ export default function ProjectDetailPage({ params }: { params: { slug: string }
     }
   }, [loadProjects, projectsLoaded])
 
-  const project = getProjectBySlug(slug)
+  const project = slug ? getProjectBySlug(slug) : undefined
 
-  if (projectsLoaded && !project) {
+  if (slug && projectsLoaded && !project) {
     notFound()
   }
 

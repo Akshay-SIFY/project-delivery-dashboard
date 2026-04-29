@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useState } from "react"
 import { Calendar, MoreHorizontal } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import type { Project } from "@/lib/types"
 import { useStore } from "@/lib/store"
+import { EditProjectDialog } from "@/components/projects/edit-project-dialog"
 
 interface ProjectCardProps {
   project: Project
@@ -19,6 +21,7 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project }: ProjectCardProps) {
   const { deleteProject } = useStore()
+  const [isEditOpen, setIsEditOpen] = useState(false)
 
   const statusColors = {
     active: "bg-chart-2/10 text-chart-2",
@@ -54,6 +57,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
               <Link href={`/projects/${project.slug}`}>View Details</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
+              Edit Project
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
@@ -102,6 +108,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           </p>
         </div>
       </CardContent>
+      <EditProjectDialog open={isEditOpen} onOpenChange={setIsEditOpen} project={project} />
     </Card>
   )
 }
