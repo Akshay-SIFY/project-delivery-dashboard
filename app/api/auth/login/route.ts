@@ -1,4 +1,5 @@
 import { createSessionToken, getSessionCookieName } from "@/lib/auth"
+import { NextResponse } from "next/server"
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null)
@@ -10,17 +11,17 @@ export async function POST(req: Request) {
   const sessionSecret = process.env.SESSION_SECRET
 
   if (!appUsername || !appPassword || !sessionSecret) {
-    return Response.json({ error: "Missing auth environment variables" }, { status: 500 })
+    return NextResponse.json({ error: "Missing auth environment variables" }, { status: 500 })
   }
 
   if (username !== appUsername || password !== appPassword) {
-    return Response.json({ error: "Invalid credentials" }, { status: 401 })
+    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
   }
 
   const token = await createSessionToken(username, sessionSecret)
   const isProduction = process.env.NODE_ENV === "production"
 
-  const response = Response.json({ success: true })
+  const response = NextResponse.json({ success: true })
   response.cookies.set(getSessionCookieName(), token, {
     httpOnly: true,
     secure: isProduction,

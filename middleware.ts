@@ -18,16 +18,25 @@ export async function middleware(request: NextRequest) {
   }
 
   const sessionSecret = process.env.SESSION_SECRET
+  if (pathname === "/login") {
+    if (!sessionSecret) {
+      return NextResponse.next()
+    }
+
+    const token = request.cookies.get(getSessionCookieName())?.value
+    const isValid = await verifySessionToken(token, sessionSecret)
+    return isValid ? NextResponse.redirect(new URL("/", request.url)) : NextResponse.next()
+  }
+
   if (!sessionSecret) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "SESSION_SECRET is not configured" }, { status: 500 })
+    }
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
   const token = request.cookies.get(getSessionCookieName())?.value
   const isValid = await verifySessionToken(token, sessionSecret)
-
-  if (pathname === "/login") {
-    return isValid ? NextResponse.redirect(new URL("/", request.url)) : NextResponse.next()
-  }
 
   if (!isValid) {
     if (pathname.startsWith("/api/")) {
