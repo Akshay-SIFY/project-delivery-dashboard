@@ -17,7 +17,7 @@ interface ProjectListItemProps {
 }
 
 export function ProjectListItem({ project }: ProjectListItemProps) {
-  const { deleteProject } = useStore()
+  const { deleteProject, updateProject } = useStore()
 
   const statusColors = {
     active: "bg-chart-2/10 text-chart-2",
@@ -84,10 +84,26 @@ export function ProjectListItem({ project }: ProjectListItemProps) {
               <Link href={`/projects/${project.slug}`}>View Details</Link>
             </DropdownMenuItem>
             <DropdownMenuItem
+              onClick={async () => {
+                const name = window.prompt("Project name", project.name)
+                if (name === null || !name.trim()) return
+
+                const description = window.prompt("Project description", project.description)
+                if (description === null) return
+
+                await updateProject(project.id, {
+                  name: name.trim(),
+                  description: description.trim(),
+                })
+              }}
+            >
+              Edit Project
+            </DropdownMenuItem>
+            <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={async () => {
-  await deleteProject(project.id)
-}}
+                await deleteProject(project.id)
+              }}
             >
               Delete Project
             </DropdownMenuItem>
