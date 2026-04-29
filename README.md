@@ -24,6 +24,18 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+
+## Environment Variables
+
+Set these in your local `.env` and Vercel project settings:
+
+- `DATABASE_URL`
+- `APP_USERNAME`
+- `APP_PASSWORD`
+- `SESSION_SECRET`
+
+`SESSION_SECRET` should be a long random string used to sign secure session cookies.
+
 ## Learn More
 
 To learn more, take a look at the following resources:
