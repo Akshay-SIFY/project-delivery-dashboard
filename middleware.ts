@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server"
 import { getSessionCookieName, verifySessionToken } from "@/lib/auth"
 
 function isAlwaysPublicPath(pathname: string): boolean {
+  if (pathname === "/login") return true
   if (pathname.startsWith("/_next")) return true
   if (pathname.startsWith("/api/auth")) return true
   if (pathname === "/favicon.ico") return true
@@ -18,15 +19,6 @@ export async function middleware(request: NextRequest) {
   }
 
   const sessionSecret = process.env.SESSION_SECRET
-  if (pathname === "/login") {
-    if (!sessionSecret) {
-      return NextResponse.next()
-    }
-
-    const token = request.cookies.get(getSessionCookieName())?.value
-    const isValid = await verifySessionToken(token, sessionSecret)
-    return isValid ? NextResponse.redirect(new URL("/", request.url)) : NextResponse.next()
-  }
 
   if (!sessionSecret) {
     if (pathname.startsWith("/api/")) {
@@ -40,7 +32,7 @@ export async function middleware(request: NextRequest) {
 
   if (!isValid) {
     if (pathname.startsWith("/api/")) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const loginUrl = new URL("/login", request.url)
