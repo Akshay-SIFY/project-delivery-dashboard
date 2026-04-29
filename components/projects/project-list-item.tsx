@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useState } from "react"
 import { Calendar, MoreHorizontal, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -11,13 +12,15 @@ import {
 } from "@/components/ui/dropdown-menu"
 import type { Project } from "@/lib/types"
 import { useStore } from "@/lib/store"
+import { EditProjectDialog } from "@/components/projects/edit-project-dialog"
 
 interface ProjectListItemProps {
   project: Project
 }
 
 export function ProjectListItem({ project }: ProjectListItemProps) {
-  const { deleteProject, updateProject } = useStore()
+  const { deleteProject } = useStore()
+  const [isEditOpen, setIsEditOpen] = useState(false)
 
   const statusColors = {
     active: "bg-chart-2/10 text-chart-2",
@@ -83,20 +86,7 @@ export function ProjectListItem({ project }: ProjectListItemProps) {
             <DropdownMenuItem asChild>
               <Link href={`/projects/${project.slug}`}>View Details</Link>
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={async () => {
-                const name = window.prompt("Project name", project.name)
-                if (name === null || !name.trim()) return
-
-                const description = window.prompt("Project description", project.description)
-                if (description === null) return
-
-                await updateProject(project.id, {
-                  name: name.trim(),
-                  description: description.trim(),
-                })
-              }}
-            >
+            <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
               Edit Project
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -116,6 +106,7 @@ export function ProjectListItem({ project }: ProjectListItemProps) {
           <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
+      <EditProjectDialog open={isEditOpen} onOpenChange={setIsEditOpen} project={project} />
     </div>
   )
 }
