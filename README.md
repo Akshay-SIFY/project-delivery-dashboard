@@ -1,55 +1,54 @@
 # Project Delivery Dashboard
 
-> A centralized project delivery and operations management platform for planning, tracking, and monitoring projects, tasks, teams, and operational progress through an interactive dashboard.
+> An operations-first project delivery platform for planning, tracking, and managing projects, tasks, teams, and delivery workflows through interactive dashboards, Kanban boards, analytics, and Excel integration.
 
 ![Next.js](https://img.shields.io/badge/Next.js-Framework-black)
 ![React](https://img.shields.io/badge/React-Frontend-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Language-blue)
 ![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-UI-06B6D4)
+![Dashboard](https://img.shields.io/badge/Platform-Project%20Delivery-green)
 
 ---
 
 # Overview
 
-The **Project Delivery Dashboard** is designed to simplify project planning, execution, and operational monitoring through a unified workspace.
+The **Project Delivery Dashboard** is a centralized platform designed to improve project execution, operational visibility, and team collaboration.
 
-The platform enables teams to manage projects, organize tasks, assign responsibilities, monitor progress, and visualize project health using interactive dashboards and workflow analytics.
+Unlike traditional project management applications, the platform combines project planning, task management, workflow tracking, operational analytics, and spreadsheet integration into a single workspace, enabling teams to manage day-to-day execution more efficiently.
 
-It is intended for operational teams, project managers, and delivery teams that require centralized visibility across multiple projects.
+The application is particularly suited for operational environments where multiple concurrent projects, deadlines, and cross-functional teams require continuous monitoring.
 
 ---
 
 # Business Problem
 
-Managing multiple projects through spreadsheets and disconnected tools often results in:
+Many operational teams continue to rely on spreadsheets, emails, and disconnected tools for project tracking. This often leads to:
 
-- Limited visibility
-- Missed deadlines
-- Poor task coordination
+- Limited project visibility
+- Delayed task execution
 - Manual reporting
-- Lack of progress tracking
+- Duplicate work
+- Difficult collaboration
+- Inefficient progress monitoring
 
-The Project Delivery Dashboard centralizes project information into a single platform, improving collaboration, transparency, and execution efficiency.
+The Project Delivery Dashboard centralizes project information into a single platform, providing real-time visibility, standardized workflows, and actionable insights for delivery teams.
 
 ---
 
 # Key Features
 
-- Centralized project dashboard
-- Project portfolio management
-- Task management
-- Kanban workflow
-- Team management
-- Task assignment
-- Progress tracking
-- Project analytics
-- Status monitoring
-- Priority management
-- Due date tracking
+- Centralized project portfolio dashboard
+- Interactive project management
+- Kanban-based task management
+- Team collaboration
+- Task assignment and ownership
+- Priority and due date tracking
+- Progress monitoring
 - Search and filtering
-- Excel import
+- Interactive analytics dashboard
+- Excel import for bulk task creation
 - Data export
-- Responsive user interface
+- Responsive interface
 
 ---
 
@@ -57,47 +56,59 @@ The Project Delivery Dashboard centralizes project information into a single pla
 
 ## Dashboard
 
-Provides a high-level overview of project performance through KPIs, progress indicators, and activity summaries.
+Provides a real-time overview of:
+
+- Active Projects
+- Completed Tasks
+- Tasks in Progress
+- Overall Delivery Progress
+- Recent Activities
+- Task Distribution
+- Status Breakdown
 
 ---
 
 ## Project Management
 
-Create and organize projects with associated milestones, timelines, and delivery status.
+Organize projects with timelines, ownership, milestones, priorities, and current delivery status.
 
 ---
 
 ## Task Management
 
-Manage project tasks with priorities, due dates, assignees, and workflow status.
+Create, assign, update, and monitor tasks with support for priorities, deadlines, and project grouping.
 
 ---
 
-## Kanban Board
+## Kanban Workflow
 
-Visualize task progress across workflow stages including:
+Visualize work using a drag-and-drop style workflow across:
 
 - To Do
 - In Progress
 - Completed
 
+enabling teams to monitor delivery progress at a glance.
+
 ---
 
 ## Team Management
 
-Assign tasks, manage responsibilities, and improve team collaboration.
+Coordinate multiple team members through centralized task ownership and workload distribution.
 
 ---
 
-## Analytics Dashboard
+## Operational Analytics
 
-Track:
+Generate real-time insights into project performance through dashboards and graphical summaries.
 
-- Active Projects
-- Completed Tasks
-- Overall Progress
-- Task Distribution
-- Status Breakdown
+---
+
+## Excel Integration
+
+Supports importing project tasks directly from Excel, making it easier for operational teams to transition from spreadsheet-based planning to a centralized delivery platform.
+
+Project data can also be exported for reporting and archival purposes.
 
 ---
 
@@ -105,21 +116,24 @@ Track:
 
 ```
 Create Project
-      │
-      ▼
-Assign Team
-      │
-      ▼
-Create Tasks
-      │
-      ▼
+       │
+       ▼
+Import Tasks (Excel) / Create Tasks
+       │
+       ▼
+Assign Team Members
+       │
+       ▼
+Execute Work
+       │
+       ▼
 Track Progress
-      │
-      ▼
-Monitor Dashboard
-      │
-      ▼
-Project Completion
+       │
+       ▼
+Monitor Dashboard & Analytics
+       │
+       ▼
+Project Completion & Reporting
 ```
 
 ---
@@ -131,17 +145,19 @@ Project Completion
 - TypeScript
 - Tailwind CSS
 - Responsive UI
+- Excel Import/Export
 
 ---
 
 # Benefits
 
 - Centralized project visibility
-- Improved task tracking
-- Better resource coordination
 - Faster project execution
-- Enhanced collaboration
-- Real-time operational insights
+- Improved team coordination
+- Standardized operational workflows
+- Reduced dependency on spreadsheets
+- Better resource management
+- Real-time delivery insights
 - Simplified reporting
 
 ---
@@ -150,25 +166,26 @@ Project Completion
 
 - Project Delivery
 - PMO Operations
-- Internal Operations
 - Product Teams
-- Software Development
+- Internal Operations
+- Engineering Teams
 - Assessment Operations
-- Cross-functional Teams
+- Cross-functional Project Management
 
 ---
 
 # Future Roadmap
 
 - Gantt Chart
-- Resource Planning
+- Resource Allocation
 - Risk Register
 - Dependency Management
-- Notifications
 - Calendar Integration
-- Role-based Access Control
+- Notifications
+- Role-Based Access Control
 - AI-powered Task Prioritization
-- Project Health Analytics
+- Predictive Project Health Analytics
+- Integration with Microsoft Teams and Jira
 
 ---
 
@@ -176,7 +193,7 @@ Project Completion
 
 This repository is intended for educational and portfolio purposes.
 
-Organization names, project details, task information, and operational data displayed in screenshots have been anonymized or generalized. The repository demonstrates project delivery, workflow management, and dashboard development concepts.
+Organization names, project data, team information, and operational details shown in the demonstration have been anonymized or generalized. The project showcases project delivery, workflow automation, dashboard development, and operational management concepts.
 
 ---
 
