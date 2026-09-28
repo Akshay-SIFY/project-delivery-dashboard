@@ -63,8 +63,25 @@ async function createSchema() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS subtasks (
+      id BIGSERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'todo',
+      task_id BIGINT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      assignees JSONB NOT NULL DEFAULT '[]'::jsonb,
+      start_date DATE,
+      due_date DATE,
+      remarks TEXT,
+      notes TEXT,
+      created_at DATE NOT NULL DEFAULT CURRENT_DATE,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
     CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+    CREATE INDEX IF NOT EXISTS idx_subtasks_task_id ON subtasks(task_id);
+    CREATE INDEX IF NOT EXISTS idx_subtasks_status ON subtasks(status);
   `)
 
   await pool.query(`

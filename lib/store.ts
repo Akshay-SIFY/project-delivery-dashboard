@@ -1,11 +1,12 @@
 "use client"
 
 import { create } from "zustand"
-import type { Project, Task, TeamMember } from "./types"
+import type { Project, Task, TeamMember, Subtask } from "./types"
 
 interface Store {
   projects: Project[]
   tasks: Task[]
+  subtasks: Subtask[]
   teamMembers: TeamMember[]
   searchQuery: string
   projectsLoaded: boolean
@@ -19,15 +20,20 @@ interface Store {
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>
   deleteProject: (id: string) => Promise<void>
   getProjectBySlug: (slug: string) => Project | undefined
-  addTask: (task: Omit<Task, "id" | "createdAt">) => Promise<void>
+  addTask: (task: Omit<Task, "id" | "createdAt" | "subtasks">) => Promise<void>
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
   deleteTask: (id: string) => Promise<void>
+  addSubtask: (subtask: Omit<Subtask, "id" | "createdAt">) => Promise<void>
+  updateSubtask: (id: string, updates: Partial<Subtask>) => Promise<void>
+  deleteSubtask: (id: string) => Promise<void>
+  getSubtasksByTaskId: (taskId: string) => Subtask[]
   addTeamMember: (member: Omit<TeamMember, "id">) => Promise<void>
   updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<void>
   deleteTeamMember: (id: string) => Promise<{ deletedMember: TeamMember | null; affectedTasks: Task[] }>
   getTasksByAssignee: (memberName: string) => Task[]
   loadProjects: () => Promise<void>
   loadTasks: () => Promise<void>
+  loadSubtasks: () => Promise<void>
   loadTeamMembers: () => Promise<void>
 }
 
@@ -64,6 +70,7 @@ function recalculateProjectStats(projects: Project[], tasks: Task[]): Project[] 
 export const useStore = create<Store>((set, get) => ({
   projects: [],
   tasks: [],
+  subtasks: [],
   teamMembers: [],
   searchQuery: "",
   projectsLoaded: false,
@@ -91,6 +98,12 @@ export const useStore = create<Store>((set, get) => ({
         projects: recalculateProjectStats(state.projects, safeTasks),
       }
     })
+  },
+
+  loadSubtasks: async () => {
+    const response = await fetch("/api/subtasks", { method: "GET" })
+    const subtasks = await parseJson<Subtask[]>(response)
+    set({ subtasks: Array.isArray(subtasks) ? subtasks : [] })
   },
 
   loadTeamMembers: async () => {
@@ -205,12 +218,62 @@ export const useStore = create<Store>((set, get) => ({
 
     set((state) => {
       const tasks = state.tasks.filter((task) => task.id !== id)
+      const subtasks = state.subtasks.filter((subtask) => subtask.taskId !== id)
       return {
         tasks,
+        subtasks,
         projects: recalculateProjectStats(state.projects, tasks),
       }
     })
   },
+
+  addSubtask: async (subtask) => {
+    const response = await fetch("/api/subtasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(subtask),
+    })
+
+    const created = await parseJson<Subtask>(response)
+
+    set((state) => ({
+      subtasks: [...state.subtasks, created],
+    }))
+  },
+
+  updateSubtask: async (id, updates) => {
+    const currentSubtask = get().subtasks.find((subtask) => subtask.id === id)
+    if (!currentSubtask) return
+
+    const response = await fetch(`/api/subtasks/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...currentSubtask, ...updates, id }),
+    })
+
+    const updated = await parseJson<Subtask>(response)
+
+    set((state) => ({
+      subtasks: state.subtasks.map((subtask) => (subtask.id === id ? updated : subtask)),
+    }))
+  },
+
+  deleteSubtask: async (id) => {
+    const response = await fetch(`/api/subtasks/${id}`, {
+      method: "DELETE",
+    })
+
+    if (!response.ok) {
+      await parseJson(response)
+    }
+
+    set((state) => ({
+      subtasks: state.subtasks.filter((subtask) => subtask.id !== id),
+    }))
+  },
+
+  getSubtasksByTaskId: (taskId) =>
+    get().subtasks.filter((subtask) => subtask.taskId === taskId),
 
   addTeamMember: async (member) => {
     const response = await fetch("/api/team", {
@@ -249,6 +312,15 @@ export const useStore = create<Store>((set, get) => ({
               ),
             }))
           : state.tasks,
+      subtasks:
+        updates.name && existing.name !== updates.name
+          ? state.subtasks.map((subtask) => ({
+              ...subtask,
+              assignees: subtask.assignees.map((assignee) =>
+                assignee === existing.name ? updates.name! : assignee,
+              ),
+            }))
+          : state.subtasks,
     }))
   },
 
@@ -276,6 +348,12 @@ export const useStore = create<Store>((set, get) => ({
                 assignees: task.assignees.filter((assignee) => assignee !== existing.name),
               }))
             : state.tasks,
+      subtasks: existing
+        ? state.subtasks.map((subtask) => ({
+            ...subtask,
+            assignees: subtask.assignees.filter((assignee) => assignee !== existing.name),
+          }))
+        : state.subtasks,
     }))
 
     return {
@@ -292,6 +370,7 @@ if (typeof window !== "undefined") {
   void Promise.all([
     useStore.getState().loadProjects(),
     useStore.getState().loadTasks(),
+    useStore.getState().loadSubtasks(),
     useStore.getState().loadTeamMembers(),
   ]).catch((error) => {
     console.error("Failed to load store data:", error)
