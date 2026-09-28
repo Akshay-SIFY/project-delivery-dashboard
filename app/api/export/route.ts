@@ -13,7 +13,6 @@ function rowXml(values: unknown[]): string {
   const cells = values
     .map((value) => `<Cell><Data ss:Type="String">${escapeXml(value)}</Data></Cell>`)
     .join("")
-
   return `<Row>${cells}</Row>`
 }
 
@@ -26,7 +25,7 @@ export async function GET() {
   try {
     await ensureSchema()
 
-    const [projectsResult, tasksResult, teamResult] = await Promise.all([
+    const [projectsResult, tasksResult, subtasksResult, teamResult] = await Promise.all([
       pool.query(`
         SELECT id::text, name, description, status, progress, tasks_count, completed_tasks, due_date, created_at, color
         FROM projects
@@ -35,6 +34,11 @@ export async function GET() {
       pool.query(`
         SELECT id::text, title, description, priority, status, assignees, dependencies, remarks, notes, links, start_date, due_date, project_id::text, created_at
         FROM tasks
+        ORDER BY id DESC
+      `),
+      pool.query(`
+        SELECT id::text, title, description, status, assignees, task_id::text, start_date, due_date, created_at
+        FROM subtasks
         ORDER BY id DESC
       `),
       pool.query(`
@@ -97,6 +101,22 @@ export async function GET() {
       ]),
     )
 
+    const subtasksSheet = worksheetXml(
+      "Subtasks",
+      ["ID", "Title", "Description", "Status", "Assignees", "Task ID", "Start Date", "Due Date", "Created At"],
+      subtasksResult.rows.map((row) => [
+        row.id,
+        row.title,
+        row.description,
+        row.status,
+        JSON.stringify(row.assignees ?? []),
+        row.task_id,
+        row.start_date,
+        row.due_date,
+        row.created_at,
+      ]),
+    )
+
     const teamSheet = worksheetXml(
       "Team Members",
       ["ID", "Name", "Avatar", "Role"],
@@ -112,6 +132,7 @@ export async function GET() {
       xmlns:html="http://www.w3.org/TR/REC-html40">
       ${projectsSheet}
       ${tasksSheet}
+      ${subtasksSheet}
       ${teamSheet}
       </Workbook>`
 

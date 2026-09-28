@@ -2,6 +2,7 @@ import { ensureSchema, pool } from "@/lib/db"
 
 const VALID_STATUSES = new Set(["todo", "in-progress", "completed"])
 const VALID_PRIORITIES = new Set(["low", "medium", "high"])
+const VALID_SUBTASK_STATUSES = new Set(["todo", "in-progress", "completed"])
 
 interface ImportInputRow {
   rowNumber?: number
@@ -22,6 +23,12 @@ interface ImportInputRow {
   remarks?: unknown
   notes?: unknown
   links?: unknown
+  subtaskName?: unknown
+  subtaskDescription?: unknown
+  subtaskStatus?: unknown
+  subtaskAssignedTo?: unknown
+  subtaskStartDate?: unknown
+  subtaskDueDate?: unknown
 }
 
 interface FailedImportRow {
@@ -40,7 +47,6 @@ function normalizeStatus(value: string): string {
     "in progress": "in-progress",
     done: "completed",
   }
-
   return aliases[normalized] ?? normalized
 }
 
@@ -50,18 +56,11 @@ function normalizePriority(value: string): string {
 
 function toStringArray(input: unknown): string[] {
   if (Array.isArray(input)) {
-    return input
-      .map((entry) => asTrimmedString(entry))
-      .filter((entry) => entry.length > 0)
+    return input.map((entry) => asTrimmedString(entry)).filter((entry) => entry.length > 0)
   }
-
   const str = asTrimmedString(input)
   if (!str) return []
-
-  return str
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0)
+  return str.split(",").map((entry) => entry.trim()).filter((entry) => entry.length > 0)
 }
 
 function parseDateToISO(value: unknown): string | null {
@@ -73,23 +72,18 @@ function parseDateToISO(value: unknown): string | null {
       return asDate.toISOString().slice(0, 10)
     }
   }
-
   const str = asTrimmedString(value)
   if (!str) return null
-
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
     return str
   }
-
   const dayMonthYearMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
   if (dayMonthYearMatch) {
     const first = Number(dayMonthYearMatch[1])
     const second = Number(dayMonthYearMatch[2])
     const year = Number(dayMonthYearMatch[3])
-
     let day = first
     let month = second
-
     if (first > 12 && second <= 12) {
       day = first
       month = second
@@ -97,15 +91,12 @@ function parseDateToISO(value: unknown): string | null {
       month = first
       day = second
     } else if (str.includes("-")) {
-      // Prefer DD-MM-YYYY for dash-separated dates.
       day = first
       month = second
     } else {
-      // Ambiguous slash-separated format defaults to MM/DD/YYYY.
       month = first
       day = second
     }
-
     const parsed = new Date(Date.UTC(year, month - 1, day))
     if (
       !Number.isNaN(parsed.getTime()) &&
@@ -117,26 +108,22 @@ function parseDateToISO(value: unknown): string | null {
     }
     return null
   }
-
   if (/^\d{5}(\.\d+)?$/.test(str)) {
     const numeric = Number(str)
     if (!Number.isNaN(numeric)) {
       return parseDateToISO(numeric)
     }
   }
-
   const parsed = new Date(str)
   if (Number.isNaN(parsed.getTime())) {
     return null
   }
-
   return parsed.toISOString().slice(0, 10)
 }
 
 export async function POST(req: Request) {
   try {
     await ensureSchema()
-
     const body = await req.json().catch(() => ({})) as { tasks?: unknown }
     const tasks = Array.isArray(body.tasks) ? (body.tasks as ImportInputRow[]) : []
 
@@ -172,6 +159,8 @@ export async function POST(req: Request) {
 
     const imported: Array<Record<string, unknown>> = []
     const failedRows: FailedImportRow[] = []
+    const taskIdMap = new Map<number, string>()
+    let lastTaskId: string | null = null
 
     for (let index = 0; index < tasks.length; index++) {
       const row = tasks[index] ?? {}
@@ -179,6 +168,56 @@ export async function POST(req: Request) {
 
       try {
         const title = asTrimmedString(row.taskName ?? row.title)
+        const subtaskName = asTrimmedString(row.subtaskName)
+
+        // If subtask row but no task name, link to last task
+        if (!title && subtaskName) {
+          if (!lastTaskId) {
+            failedRows.push({ rowNumber, reason: "Subtask without parent task" })
+            continue
+          }
+          const subtaskDescription = asTrimmedString(row.subtaskDescription)
+          const subtaskStatusInput = asTrimmedString(row.subtaskStatus)
+          const subtaskStatus = subtaskStatusInput ? normalizeStatus(subtaskStatusInput) : "todo"
+
+          if (!VALID_SUBTASK_STATUSES.has(subtaskStatus)) {
+            failedRows.push({ rowNumber, reason: `Invalid subtask status: ${subtaskStatusInput}` })
+            continue
+          }
+
+          const subtaskAssignees = toStringArray(row.subtaskAssignedTo)
+          const invalidSubtaskAssignees = subtaskAssignees.filter((name) => !teamNames.has(name.toLowerCase()))
+          if (invalidSubtaskAssignees.length > 0) {
+            failedRows.push({ rowNumber, reason: `Subtask assignee not found: ${invalidSubtaskAssignees.join(", ")}` })
+            continue
+          }
+
+          const subtaskStartDate = parseDateToISO(row.subtaskStartDate)
+          const subtaskDueDate = parseDateToISO(row.subtaskDueDate)
+
+          if (asTrimmedString(row.subtaskStartDate) && !subtaskStartDate) {
+            failedRows.push({ rowNumber, reason: "Invalid subtask start date format" })
+            continue
+          }
+          if (asTrimmedString(row.subtaskDueDate) && !subtaskDueDate) {
+            failedRows.push({ rowNumber, reason: "Invalid subtask date format" })
+            continue
+          }
+          if (subtaskStartDate && subtaskDueDate && subtaskDueDate < subtaskStartDate) {
+            failedRows.push({ rowNumber, reason: "Subtask end date cannot be before start date" })
+            continue
+          }
+
+          await pool.query(
+            `
+            INSERT INTO subtasks (title, description, status, task_id, assignees, start_date, due_date)
+            VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
+            `,
+            [subtaskName, subtaskDescription, subtaskStatus, lastTaskId, JSON.stringify(subtaskAssignees), subtaskStartDate, subtaskDueDate],
+          )
+          continue
+        }
+
         if (!title) {
           failedRows.push({ rowNumber, reason: "Missing task title" })
           continue
@@ -194,7 +233,6 @@ export async function POST(req: Request) {
           failedRows.push({ rowNumber, reason: `Invalid status value: ${statusInput}` })
           continue
         }
-
         if (!VALID_PRIORITIES.has(priority)) {
           failedRows.push({ rowNumber, reason: `Invalid priority value: ${priorityInput}` })
           continue
@@ -209,12 +247,10 @@ export async function POST(req: Request) {
           failedRows.push({ rowNumber, reason: "Invalid start date format" })
           continue
         }
-
         if (asTrimmedString(dueDateSource) && !dueDate) {
           failedRows.push({ rowNumber, reason: "Invalid date format" })
           continue
         }
-
         if (startDate && dueDate && dueDate < startDate) {
           failedRows.push({ rowNumber, reason: "End date cannot be before start date" })
           continue
@@ -223,7 +259,6 @@ export async function POST(req: Request) {
         const assigneeSource = row.assignedTo ?? row.assignee ?? row.assignees
         const assignees = toStringArray(assigneeSource)
         const invalidAssignees = assignees.filter((name) => !teamNames.has(name.toLowerCase()))
-
         if (invalidAssignees.length > 0) {
           failedRows.push({ rowNumber, reason: `Assignee not found: ${invalidAssignees.join(", ")}` })
           continue
@@ -231,7 +266,6 @@ export async function POST(req: Request) {
 
         const dependencies = toStringArray(row.dependencies)
         const links = toStringArray(row.links)
-
         const projectIdFromName = projectMap.get(asTrimmedString(row.projectName).toLowerCase())
         const projectId = asTrimmedString(row.projectId) || projectIdFromName || null
 
@@ -263,6 +297,7 @@ export async function POST(req: Request) {
           ],
         )
 
+        lastTaskId = result.rows[0]?.id as string
         imported.push(result.rows[0])
       } catch (error) {
         failedRows.push({
