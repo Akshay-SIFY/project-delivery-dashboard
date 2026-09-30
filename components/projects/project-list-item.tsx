@@ -48,7 +48,7 @@ export function ProjectListItem({ project }: ProjectListItemProps) {
             {project.status.replace("-", " ")}
           </span>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground truncate">
+        <p className="mt-1 text-sm text-muted-foreground">
           {project.description}
         </p>
       </div>
