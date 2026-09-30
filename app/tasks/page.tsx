@@ -11,6 +11,11 @@ import { ExcelImportDialog } from "@/components/tasks/excel-import-dialog"
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog"
 import { useStore } from "@/lib/store"
 
+const dateValue = (d?: string | null) => {
+  const t = d ? new Date(d).getTime() : NaN
+  return Number.isNaN(t) ? Number.MAX_SAFE_INTEGER : t
+}
+
 export default function TasksPage() {
   const { tasks, projects, searchQuery } = useStore()
   const [statusFilter, setStatusFilter] = useState<string>("all")
@@ -27,7 +32,12 @@ export default function TasksPage() {
     const matchesPriority = priorityFilter === "all" || t.priority === priorityFilter
     const matchesProject = projectFilter === "all" || t.projectId === projectFilter
     return matchesSearch && matchesStatus && matchesPriority && matchesProject
-  })
+    }).sort(
+    (a, b) =>
+      dateValue(a.startDate) - dateValue(b.startDate) ||
+      dateValue(a.dueDate) - dateValue(b.dueDate) ||
+      Number(a.id) - Number(b.id)
+  )
 
   const getProjectName = (projectId: string) => {
     return projects.find((p) => p.id === projectId)?.name || "Unknown Project"
