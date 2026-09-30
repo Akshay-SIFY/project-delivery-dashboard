@@ -6,8 +6,19 @@ import { useStore } from "@/lib/store"
 export function RecentTasks() {
   const { tasks, projects } = useStore()
 
+    const dateValue = (d?: string | null) => {
+    const t = d ? new Date(d).getTime() : NaN
+    return Number.isNaN(t) ? Number.MAX_SAFE_INTEGER : t
+  }
+
   const recentTasks = [...tasks]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .filter((t) => t.status !== "completed")
+    .sort(
+      (a, b) =>
+        dateValue(a.startDate) - dateValue(b.startDate) ||
+        dateValue(a.dueDate) - dateValue(b.dueDate) ||
+        Number(a.id) - Number(b.id)
+    )
     .slice(0, 5)
 
   const getProjectName = (projectId: string) => {
