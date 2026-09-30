@@ -149,7 +149,7 @@ export function TaskItem({ task }: TaskItemProps) {
           </DropdownMenu>
         </div>
         {task.description && (
-          <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+          <p className="mt-1 text-sm text-muted-foreground">
             {task.description}
           </p>
         )}
