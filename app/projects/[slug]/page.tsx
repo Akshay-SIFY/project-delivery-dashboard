@@ -11,7 +11,10 @@ import { CreateTaskDialog } from "@/components/tasks/create-task-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useStore } from "@/lib/store"
-
+const dateValue = (d?: string | null) => {
+  const t = d ? new Date(d).getTime() : NaN
+  return Number.isNaN(t) ? Number.MAX_SAFE_INTEGER : t
+}
 export default function ProjectDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const [slug, setSlug] = useState<string>("")
   const { tasks, searchQuery, getProjectBySlug, loadProjects, projectsLoaded } = useStore()
@@ -41,13 +44,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ slug: 
   }
 
   const projectTasks = tasks.filter((t) => t.projectId === project.id)
-  const filteredTasks = projectTasks.filter((t) => {
+    const filteredTasks = projectTasks.filter((t) => {
     const matchesSearch =
       t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.description.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = statusFilter === "all" || t.status === statusFilter
     return matchesSearch && matchesStatus
-  })
+  }).sort(
+    (a, b) =>
+      dateValue(a.startDate) - dateValue(b.startDate) ||
+      dateValue(a.dueDate) - dateValue(b.dueDate) ||
+      Number(a.id) - Number(b.id)
+  )
 
   const todoCount = projectTasks.filter((t) => t.status === "todo").length
   const inProgressCount = projectTasks.filter((t) => t.status === "in-progress").length
