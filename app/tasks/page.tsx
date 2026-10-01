@@ -17,10 +17,11 @@ const dateValue = (d?: string | null) => {
 }
 
 export default function TasksPage() {
-  const { tasks, projects, searchQuery } = useStore()
+  const { tasks, projects, teamMembers, searchQuery } = useStore()
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [priorityFilter, setPriorityFilter] = useState<string>("all")
   const [projectFilter, setProjectFilter] = useState<string>("all")
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all")
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
@@ -31,7 +32,8 @@ export default function TasksPage() {
     const matchesStatus = statusFilter === "all" || t.status === statusFilter
     const matchesPriority = priorityFilter === "all" || t.priority === priorityFilter
     const matchesProject = projectFilter === "all" || t.projectId === projectFilter
-    return matchesSearch && matchesStatus && matchesPriority && matchesProject
+    const matchesAssignee = assigneeFilter === "all" || t.assignees.includes(assigneeFilter)
+    return matchesSearch && matchesStatus && matchesPriority && matchesProject && matchesAssignee
     }).sort(
     (a, b) =>
       dateValue(a.startDate) - dateValue(b.startDate) ||
@@ -88,9 +90,22 @@ export default function TasksPage() {
                 className="h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
               >
                 <option value="all">All Projects</option>
-                {projects.map((project) => (
+                                {projects.map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={assigneeFilter}
+                onChange={(e) => setAssigneeFilter(e.target.value)}
+                className="h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
+              >
+                <option value="all">All Members</option>
+                {teamMembers.map((member) => (
+                  <option key={member.id} value={member.name}>
+                    {member.name}
                   </option>
                 ))}
               </select>
