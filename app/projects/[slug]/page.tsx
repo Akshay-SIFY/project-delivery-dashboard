@@ -17,9 +17,10 @@ const dateValue = (d?: string | null) => {
 }
 export default function ProjectDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const [slug, setSlug] = useState<string>("")
-  const { tasks, searchQuery, getProjectBySlug, loadProjects, projectsLoaded } = useStore()
+  const { tasks, teamMembers, searchQuery, getProjectBySlug, loadProjects, projectsLoaded } = useStore()
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all")
 
   useEffect(() => {
     void params.then((resolved) => {
@@ -49,7 +50,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ slug: 
       t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.description.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = statusFilter === "all" || t.status === statusFilter
-    return matchesSearch && matchesStatus
+    const matchesAssignee = assigneeFilter === "all" || t.assignees.includes(assigneeFilter)
+    return matchesSearch && matchesStatus && matchesAssignee
   }).sort(
     (a, b) =>
       dateValue(a.startDate) - dateValue(b.startDate) ||
@@ -178,7 +180,19 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ slug: 
                 <option value="all">All Status</option>
                 <option value="todo">To Do</option>
                 <option value="in-progress">In Progress</option>
-                <option value="completed">Completed</option>
+                                <option value="completed">Completed</option>
+              </select>
+              <select
+                value={assigneeFilter}
+                onChange={(e) => setAssigneeFilter(e.target.value)}
+                className="h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none ring-ring transition-colors focus:border-ring focus:ring-1"
+              >
+                <option value="all">All Members</option>
+                {teamMembers.map((member) => (
+                  <option key={member.id} value={member.name}>
+                    {member.name}
+                  </option>
+                ))}
               </select>
               <Button onClick={() => setIsCreateTaskOpen(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
